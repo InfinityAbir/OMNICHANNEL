@@ -5,11 +5,14 @@ import { RouterLink } from '@angular/router';
 import { ConversationService } from '../../../core/services/conversation.service';
 import { TagService } from '../../../core/services/tag.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { RealtimeService } from '../../../core/services/realtime.service';
 import {
   ConversationDetailResponse,
   ConversationPriority,
   ConversationStatus,
+  MessageDirection,
   MessageResponse,
+  MessageSenderType,
   NoteResponse,
   TagResponse,
 } from '../../../core/models/conversation.models';
@@ -38,6 +41,7 @@ export class ConversationDetailComponent {
   private readonly conversations = inject(ConversationService);
   private readonly tagsApi = inject(TagService);
   private readonly auth = inject(AuthService);
+  private readonly realtime = inject(RealtimeService);
 
   readonly id = input.required<string>();
   readonly changed = output<void>();
@@ -80,6 +84,44 @@ export class ConversationDetailComponent {
     });
 
     this.tagsApi.list().subscribe((tags) => this.allTags.set(tags));
+
+    this.realtime.newMessage$.subscribe((event) => {
+      if (event.conversationId !== this.id()) return;
+      this.messages.update((current) => {
+        if (current.some((m) => m.id === event.messageId)) return current;
+        return [
+          ...current,
+          {
+            id: event.messageId,
+            direction: event.direction as MessageDirection,
+            senderType: event.senderType as MessageSenderType,
+            contentType: event.contentType,
+            text: event.text,
+            createdAt: event.createdAt,
+            deliveryStatus: event.deliveryStatus as MessageResponse['deliveryStatus'],
+          },
+        ];
+      });
+    });
+
+    this.realtime.conversationUpdate$.subscribe((event) => {
+      if (event.conversationId !== this.id()) return;
+      this.detail.update((current) =>
+        current
+          ? {
+              ...current,
+              status: (event.status ?? current.status) as ConversationStatus,
+              priority: (event.priority ?? current.priority) as ConversationPriority,
+              assignedUserId: event.assignedUserId ?? current.assignedUserId,
+            }
+          : current,
+      );
+    });
+
+    this.realtime.assignmentUpdate$.subscribe((event) => {
+      if (event.conversationId !== this.id()) return;
+      this.detail.update((current) => (current ? { ...current, assignedUserId: event.assignedUserId } : current));
+    });
   }
 
   loadOlderMessages(): void {
@@ -118,7 +160,9 @@ export class ConversationDetailComponent {
     this.sending.set(true);
     this.conversations.sendMessage(this.id(), text).subscribe({
       next: (message) => {
-        this.messages.update((current) => [message, ...current]);
+        this.messages.update((current) =>
+          current.some((m) => m.id === message.id) ? current : [message, ...current],
+        );
         this.composerText.set('');
         this.sending.set(false);
         this.changed.emit();

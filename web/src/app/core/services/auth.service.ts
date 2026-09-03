@@ -7,6 +7,7 @@ import {
   LoginRequest,
   RegisterRequest,
 } from '../models/auth.models';
+import { RealtimeService } from './realtime.service';
 
 const ACCESS_TOKEN_KEY = 'omnichannel.accessToken';
 const REFRESH_TOKEN_KEY = 'omnichannel.refreshToken';
@@ -21,6 +22,7 @@ const REFRESH_TOKEN_KEY = 'omnichannel.refreshToken';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly realtime = inject(RealtimeService);
   private readonly currentUserSignal = signal<CurrentUserResponse | null>(null);
 
   readonly currentUser = this.currentUserSignal.asReadonly();
@@ -40,16 +42,19 @@ export class AuthService {
     );
     this.storeTokens(tokens);
     await this.loadCurrentUser();
+    this.realtime.start();
   }
 
   async login(request: LoginRequest): Promise<void> {
     const tokens = await firstValueFrom(this.http.post<AuthTokenResponse>('/api/v1/auth/login', request));
     this.storeTokens(tokens);
     await this.loadCurrentUser();
+    this.realtime.start();
   }
 
   async logout(): Promise<void> {
     const refreshToken = this.refreshToken;
+    this.realtime.stop();
     this.clearTokens();
     this.currentUserSignal.set(null);
     if (refreshToken) {

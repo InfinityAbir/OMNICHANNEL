@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Omnichannel.Domain\Omnichannel.Domain.csproj" />
+    <ProjectReference Include="..\Omnichannel.Contracts\Omnichannel.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

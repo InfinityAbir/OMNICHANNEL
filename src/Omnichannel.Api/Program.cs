@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Omnichannel.Api.Authorization;
 using Omnichannel.Api.Endpoints;
+using Omnichannel.Infrastructure.Realtime;
 using Omnichannel.Api.Middleware;
 using Omnichannel.Application;
 using Omnichannel.Infrastructure;
@@ -112,12 +113,38 @@ builder.Services
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
         };
+        // SignalR WebSockets cannot set an Authorization header, so the client sends the token
+        // in the query string (?access_token=...) via accessTokenFactory. Read it here for hub
+        // paths only — never accept query-string tokens on regular HTTP API calls.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
+        };
     });
 
 // ---- Authorization: permission-string policies resolved dynamically (PermissionKeys.*) ----
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
-builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationHandler, InboxHubAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    // SignalR hub connections must be authenticated with a valid tenant_id + sub claim.
+    // The InboxHubAuthorizationHandler succeeds when the token carries a valid tenant_id.
+    options.AddPolicy("RealtimeHub", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new HubAuthorizationRequirement());
+    });
+});
 
 // ---- Rate limiting: brute-force protection on auth endpoints (PRD §13/§36) ----
 // Secondary defense — Identity's account lockout (5 failed attempts / 15 min, see
@@ -139,6 +166,9 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// ---- SignalR ----
+builder.Services.AddSignalR();
 
 builder.Services.AddHealthChecks()
     .AddNpgSql(
@@ -177,6 +207,8 @@ app.MapContactsEndpoints();
 app.MapConversationsEndpoints();
 app.MapTagsEndpoints();
 app.MapAuditEndpoints();
+
+app.MapHub<InboxHub>("/hubs/inbox");
 
 // Auto-migrate only in Development/Testing — production schema changes go through a
 // deliberate, reviewed deploy step (AGENTS.md: migrations must be reviewable and tenant-safe),

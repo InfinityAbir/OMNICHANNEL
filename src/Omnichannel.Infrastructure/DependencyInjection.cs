@@ -6,6 +6,7 @@ using Omnichannel.Application.Abstractions;
 using Omnichannel.Infrastructure.Email;
 using Omnichannel.Infrastructure.Identity;
 using Omnichannel.Infrastructure.Persistence;
+using Omnichannel.Infrastructure.Realtime;
 
 namespace Omnichannel.Infrastructure;
 
@@ -51,6 +52,8 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenStore, RefreshTokenStore>();
         services.AddSingleton<IAccessTokenGenerator, JwtAccessTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        services.AddSignalRNotifier();
 
         return services;
     }

@@ -7,7 +7,12 @@ using Omnichannel.Domain.Conversations;
 
 namespace Omnichannel.Application.Conversations;
 
-public sealed class ConversationService(IAppDbContext db, AuditService audit, ITenantContext tenantContext, TimeProvider timeProvider)
+public sealed class ConversationService(
+    IAppDbContext db,
+    AuditService audit,
+    ITenantContext tenantContext,
+    TimeProvider timeProvider,
+    IRealtimeNotifier realtime)
 {
     private const int MaxPageSize = 100;
 
@@ -19,16 +24,45 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
         var conversation = Conversation.Create(tenantContext.TenantId, contactId, manualChannel.Id, now);
         db.Conversations.Add(conversation);
 
+        Message? initialMessage = null;
         if (!string.IsNullOrWhiteSpace(initialMessageText))
         {
-            var message = Message.CreateInbound(
+            initialMessage = Message.CreateInbound(
                 tenantContext.TenantId, conversation.Id, manualChannel.Id, MessageSenderType.Customer, initialMessageText, now);
-            db.Messages.Add(message);
+            db.Messages.Add(initialMessage);
             conversation.TouchLastMessage(now, initialMessageText);
         }
 
         audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.created", nameof(Conversation), conversation.Id);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (initialMessage is not null)
+        {
+            await realtime.NotifyNewMessageAsync(
+                tenantContext.TenantId,
+                conversation.Id,
+                initialMessage.Id,
+                initialMessage.Direction,
+                initialMessage.SenderType,
+                initialMessage.ContentType,
+                initialMessage.Text,
+                initialMessage.CreatedAt,
+                initialMessage.DeliveryStatus,
+                initialMessage.ExternalMessageId,
+                cancellationToken);
+
+            await realtime.NotifyConversationUpdateAsync(
+                tenantContext.TenantId,
+                conversation.Id,
+                null, // status
+                null, // priority
+                null, // aiMode
+                conversation.LastMessageAt,
+                conversation.LastMessagePreview,
+                conversation.AssignedUserId,
+                cancellationToken);
+        }
+
         return conversation;
     }
 
@@ -59,20 +93,197 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
             new { direction = direction.ToString() });
 
         await db.SaveChangesAsync(cancellationToken);
+
+        // Emit realtime events
+        await realtime.NotifyNewMessageAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            message.Id,
+            message.Direction,
+            message.SenderType,
+            message.ContentType,
+            message.Text,
+            message.CreatedAt,
+            message.DeliveryStatus,
+            message.ExternalMessageId,
+            cancellationToken);
+
+        await realtime.NotifyConversationUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            null, // status
+            null, // priority
+            null, // aiMode
+            conversation.LastMessageAt,
+            conversation.LastMessagePreview,
+            conversation.AssignedUserId,
+            cancellationToken);
+
+        // For outbound messages, also emit message status (Sent)
+        if (direction == MessageDirection.Outbound)
+        {
+            await realtime.NotifyMessageStatusAsync(
+                tenantContext.TenantId,
+                conversation.Id,
+                message.Id,
+                MessageDeliveryStatus.Sent,
+                now,
+                null, // deliveredAt
+                null, // readAt
+                cancellationToken);
+        }
+
+        // High priority alert notification
+        if (conversation.Priority == ConversationPriority.High || conversation.Priority == ConversationPriority.Urgent)
+        {
+            await realtime.NotifyHighPriorityAlertAsync(
+                tenantContext.TenantId,
+                conversation.Id,
+                "High Priority Conversation",
+                $"New message in high-priority conversation: {text[..Math.Min(100, text.Length)]}",
+                cancellationToken);
+        }
+
         return message;
     }
 
     public async Task<bool> AssignAsync(Guid conversationId, Guid assigneeUserId, CancellationToken cancellationToken)
-        => await MutateAsync(conversationId, "conversation.assigned", c => c.AssignTo(assigneeUserId, timeProvider.GetUtcNow()), cancellationToken);
+    {
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+        if (conversation is null)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var assigneeName = await db.UserProfiles
+            .Where(u => u.Id == assigneeUserId)
+            .Select(u => u.DisplayName)
+            .SingleOrDefaultAsync(cancellationToken) ?? "Unknown";
+
+        conversation.AssignTo(assigneeUserId, now);
+        audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.assigned", nameof(Conversation), conversationId);
+        await db.SaveChangesAsync(cancellationToken);
+
+        await realtime.NotifyAssignmentUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            conversation.AssignedUserId,
+            assigneeName,
+            cancellationToken);
+
+        await realtime.NotifyConversationUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            null, // status
+            null, // priority
+            null, // aiMode
+            null, // lastMessageAt
+            null, // lastMessagePreview
+            conversation.AssignedUserId,
+            cancellationToken);
+
+        return true;
+    }
 
     public async Task<bool> UnassignAsync(Guid conversationId, CancellationToken cancellationToken)
-        => await MutateAsync(conversationId, "conversation.unassigned", c => c.Unassign(timeProvider.GetUtcNow()), cancellationToken);
+    {
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+        if (conversation is null)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        conversation.Unassign(now);
+        audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.unassigned", nameof(Conversation), conversationId);
+        await db.SaveChangesAsync(cancellationToken);
+
+        await realtime.NotifyAssignmentUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            conversation.AssignedUserId,
+            "Unassigned",
+            cancellationToken);
+
+        await realtime.NotifyConversationUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            null, // status
+            null, // priority
+            null, // aiMode
+            null, // lastMessageAt
+            null, // lastMessagePreview
+            conversation.AssignedUserId,
+            cancellationToken);
+
+        return true;
+    }
 
     public async Task<bool> ChangeStatusAsync(Guid conversationId, ConversationStatus status, CancellationToken cancellationToken)
-        => await MutateAsync(conversationId, "conversation.status_changed", c => c.ChangeStatus(status, timeProvider.GetUtcNow()), cancellationToken);
+    {
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+        if (conversation is null)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        conversation.ChangeStatus(status, now);
+        audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.status_changed", nameof(Conversation), conversationId);
+        await db.SaveChangesAsync(cancellationToken);
+
+        await realtime.NotifyConversationUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            conversation.Status,
+            null, // priority
+            null, // aiMode
+            null, // lastMessageAt
+            null, // lastMessagePreview
+            conversation.AssignedUserId,
+            cancellationToken);
+
+        return true;
+    }
 
     public async Task<bool> SetPriorityAsync(Guid conversationId, ConversationPriority priority, CancellationToken cancellationToken)
-        => await MutateAsync(conversationId, "conversation.priority_changed", c => c.SetPriority(priority, timeProvider.GetUtcNow()), cancellationToken);
+    {
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+        if (conversation is null)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        conversation.SetPriority(priority, now);
+        audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.priority_changed", nameof(Conversation), conversationId);
+        await db.SaveChangesAsync(cancellationToken);
+
+        await realtime.NotifyConversationUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            null, // status
+            conversation.Priority,
+            null, // aiMode
+            null, // lastMessageAt
+            null, // lastMessagePreview
+            conversation.AssignedUserId,
+            cancellationToken);
+
+        // High priority alert if priority was set to High or Urgent
+        if (priority == ConversationPriority.High || priority == ConversationPriority.Urgent)
+        {
+            await realtime.NotifyHighPriorityAlertAsync(
+                tenantContext.TenantId,
+                conversation.Id,
+                "Priority Escalated",
+                $"Conversation priority changed to {priority}",
+                cancellationToken);
+        }
+
+        return true;
+    }
 
     public async Task<NoteSummary?> AddNoteAsync(Guid conversationId, string text, CancellationToken cancellationToken)
     {
