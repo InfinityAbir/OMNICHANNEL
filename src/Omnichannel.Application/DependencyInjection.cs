@@ -3,6 +3,7 @@ using Omnichannel.Application.Audit;
 using Omnichannel.Application.Auth;
 using Omnichannel.Application.Contacts;
 using Omnichannel.Application.Conversations;
+using Omnichannel.Application.Widget;
 
 namespace Omnichannel.Application;
 
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<ContactService>();
         services.AddScoped<ConversationService>();
         services.AddScoped<TagService>();
+        services.AddScoped<WidgetService>();
         return services;
     }
 }

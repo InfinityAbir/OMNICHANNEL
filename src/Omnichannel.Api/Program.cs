@@ -15,6 +15,7 @@ using Omnichannel.Application;
 using Omnichannel.Infrastructure;
 using Omnichannel.Infrastructure.Identity;
 using Omnichannel.Infrastructure.Persistence;
+using Omnichannel.Infrastructure.Widget;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -87,6 +88,11 @@ builder.Services.AddCors(options =>
             policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
         }
     });
+    // The widget embed is loaded by arbitrary customer sites and calls the public/widget endpoints
+    // cross-origin with a bearer token (no cookies), so it allows any origin explicitly. Agent and
+    // internal APIs remain under the strict "Default" allowlist above.
+    options.AddPolicy("WidgetEmbed", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
 // ---- Authentication: JWT bearer, signed with the key issued at login/refresh ----
@@ -129,12 +135,47 @@ builder.Services
                 return Task.CompletedTask;
             },
         };
+    })
+    // Widget scheme: a separate JWT audience ("widget") + claim set, signed with the same key and
+    // issuer as agent tokens (one issuer/key). Because the audience differs, a widget token can
+    // never call agent APIs and an agent token can never drive the widget. A widget token carries
+    // tenant_id + conversation_id + visitor_id, so ScopedTenantContext and the EF tenant filter
+    // resolve correctly for widget-authenticated requests.
+    .AddJwtBearer("Widget", options =>
+    {
+        options.MapInboundClaims = false;
+        var widgetSection = builder.Configuration.GetSection(WidgetTokenOptions.SectionName);
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = widgetSection["Audience"],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(15),
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs/widget"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
+        };
     });
 
 // ---- Authorization: permission-string policies resolved dynamically (PermissionKeys.*) ----
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddSingleton<IAuthorizationHandler, InboxHubAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, WidgetHubAuthorizationHandler>();
 builder.Services.AddAuthorization(options =>
 {
     // SignalR hub connections must be authenticated with a valid tenant_id + sub claim.
@@ -143,6 +184,20 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireAuthenticatedUser();
         policy.Requirements.Add(new HubAuthorizationRequirement());
+    });
+    // Visitor-facing widget hub + widget API: authenticated via the "Widget" scheme with a valid
+    // tenant_id + conversation_id (both come from the server-issued session token, never client input).
+    options.AddPolicy("WidgetHub", policy =>
+    {
+        policy.AddAuthenticationSchemes("Widget");
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new WidgetHubAuthorizationRequirement());
+    });
+    options.AddPolicy("WidgetSession", policy =>
+    {
+        policy.AddAuthenticationSchemes("Widget");
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new WidgetHubAuthorizationRequirement());
     });
 });
 
@@ -159,6 +214,17 @@ builder.Services.AddRateLimiter(options =>
         factory: _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+
+    // Spam/abuse control for the public widget endpoints (PRD §64): bounded fixed window per
+    // remote IP. Generous enough for a real conversation while throttling scripted abuse.
+    options.AddPolicy("widget", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
@@ -187,6 +253,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();
+// Serve the self-hosted widget embed assets (embed.js / widget.css) from wwwroot/widget. These are
+// public, static, and contain no tenant data; the tenant-scoped logic all lives in the /widget API.
+app.UseStaticFiles();
 app.UseCors("Default");
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -207,8 +276,10 @@ app.MapContactsEndpoints();
 app.MapConversationsEndpoints();
 app.MapTagsEndpoints();
 app.MapAuditEndpoints();
+app.MapWidgetEndpoints();
 
 app.MapHub<InboxHub>("/hubs/inbox");
+app.MapHub<WidgetHub>("/hubs/widget");
 
 // Auto-migrate only in Development/Testing — production schema changes go through a
 // deliberate, reviewed deploy step (AGENTS.md: migrations must be reviewable and tenant-safe),

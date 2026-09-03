@@ -7,6 +7,7 @@ using Omnichannel.Infrastructure.Email;
 using Omnichannel.Infrastructure.Identity;
 using Omnichannel.Infrastructure.Persistence;
 using Omnichannel.Infrastructure.Realtime;
+using Omnichannel.Infrastructure.Widget;
 
 namespace Omnichannel.Infrastructure;
 
@@ -44,6 +45,8 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<WidgetTokenOptions>(configuration.GetSection(WidgetTokenOptions.SectionName));
+        services.Configure<WidgetOptions>(configuration.GetSection(WidgetOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, ScopedTenantContext>();
@@ -51,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IRefreshTokenStore, RefreshTokenStore>();
         services.AddSingleton<IAccessTokenGenerator, JwtAccessTokenGenerator>();
+        services.AddSingleton<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         services.AddSignalRNotifier();

@@ -9,10 +9,12 @@ namespace Omnichannel.Infrastructure.Realtime;
 public sealed class SignalRNotifier : IRealtimeNotifier
 {
     private readonly IHubContext<InboxHub> _hubContext;
+    private readonly IHubContext<WidgetHub> _widgetHubContext;
 
-    public SignalRNotifier(IHubContext<InboxHub> hubContext)
+    public SignalRNotifier(IHubContext<InboxHub> hubContext, IHubContext<WidgetHub> widgetHubContext)
     {
         _hubContext = hubContext;
+        _widgetHubContext = widgetHubContext;
     }
 
     public Task NotifyNewMessageAsync(
@@ -121,6 +123,31 @@ public sealed class SignalRNotifier : IRealtimeNotifier
 
         return _hubContext.Clients.Group($"tenant:{tenantId}")
             .SendAsync(InboxHubEventTypes.Notification, @event, cancellationToken);
+    }
+
+    public Task NotifyVisitorMessageAsync(
+        Guid conversationId,
+        Guid messageId,
+        string direction,
+        string senderType,
+        string contentType,
+        string text,
+        DateTimeOffset createdAt,
+        string deliveryStatus,
+        CancellationToken cancellationToken)
+    {
+        var @event = new NewMessageEvent(
+            ConversationId: conversationId,
+            MessageId: messageId,
+            Direction: direction,
+            SenderType: senderType,
+            ContentType: contentType,
+            Text: text,
+            CreatedAt: createdAt,
+            DeliveryStatus: deliveryStatus);
+
+        return _widgetHubContext.Clients.Group($"conversation:{conversationId}")
+            .SendAsync(InboxHubEventTypes.NewMessage, @event, cancellationToken);
     }
 }
 

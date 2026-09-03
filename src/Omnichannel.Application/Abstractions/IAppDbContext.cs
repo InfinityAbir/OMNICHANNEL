@@ -6,6 +6,7 @@ using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
+using Omnichannel.Domain.Widget;
 
 namespace Omnichannel.Application.Abstractions;
 
@@ -25,6 +26,8 @@ public interface IAppDbContext
     DbSet<Role> Roles { get; }
 
     DbSet<ChannelAccount> ChannelAccounts { get; }
+
+    DbSet<WidgetChannelSettings> WidgetSettings { get; }
 
     DbSet<Contact> Contacts { get; }
 

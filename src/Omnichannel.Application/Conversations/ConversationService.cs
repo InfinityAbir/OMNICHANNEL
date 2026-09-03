@@ -133,6 +133,31 @@ public sealed class ConversationService(
                 cancellationToken);
         }
 
+        // Stream outbound agent replies to the website-chat widget (visitor-facing hub) when this
+        // conversation belongs to the WebsiteChat channel. The visitor never joins the agent tenant
+        // group; it receives only its own conversation's messages.
+        if (direction == MessageDirection.Outbound)
+        {
+            var channelType = await db.ChannelAccounts
+                .Where(c => c.Id == conversation.ChannelAccountId)
+                .Select(c => c.Type)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (channelType == ChannelType.WebsiteChat)
+            {
+                await realtime.NotifyVisitorMessageAsync(
+                    conversation.Id,
+                    message.Id,
+                    message.Direction.ToString(),
+                    message.SenderType.ToString(),
+                    message.ContentType.ToString(),
+                    message.Text,
+                    message.CreatedAt,
+                    message.DeliveryStatus.ToString(),
+                    cancellationToken);
+            }
+        }
+
         // High priority alert notification
         if (conversation.Priority == ConversationPriority.High || conversation.Priority == ConversationPriority.Urgent)
         {

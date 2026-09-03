@@ -10,6 +10,7 @@ using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
+using Omnichannel.Domain.Widget;
 using Omnichannel.Infrastructure.Identity;
 
 namespace Omnichannel.Infrastructure.Persistence;
@@ -35,6 +36,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<ChannelAccount> ChannelAccounts => Set<ChannelAccount>();
+
+    public DbSet<WidgetChannelSettings> WidgetSettings => Set<WidgetChannelSettings>();
 
     public DbSet<Contact> Contacts => Set<Contact>();
 

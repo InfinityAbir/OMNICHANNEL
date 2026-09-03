@@ -4,6 +4,7 @@ using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
+using Omnichannel.Domain.Widget;
 
 namespace Omnichannel.Application.Auth;
 
@@ -51,10 +52,17 @@ public sealed class AuthService(
         // any real channel adapter exists (Phase 5+) — see ADR-0012.
         var manualChannel = ChannelAccount.Create(tenant.Id, ChannelType.Manual, "Manual", now);
 
+        // And a WebsiteChat channel account + widget settings (Phase 5). Origins start empty
+        // (secure default = every embed origin denied) until the business allows its site(s).
+        var websiteChatChannel = ChannelAccount.Create(tenant.Id, ChannelType.WebsiteChat, "Website Chat", now);
+        var widgetSettings = WidgetChannelSettings.Create(tenant.Id, websiteChatChannel.Id, [], now);
+
         db.UserProfiles.Add(domainUser);
         db.Tenants.Add(tenant);
         db.Memberships.Add(membership);
         db.ChannelAccounts.Add(manualChannel);
+        db.ChannelAccounts.Add(websiteChatChannel);
+        db.WidgetSettings.Add(widgetSettings);
         await db.SaveChangesAsync(cancellationToken);
 
         var confirmationToken = await identity.GenerateEmailConfirmationTokenAsync(domainUser.Id, cancellationToken);

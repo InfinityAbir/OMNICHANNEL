@@ -52,4 +52,20 @@ public interface IRealtimeNotifier
         string title,
         string body,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Pushes a conversation message to the visitor-facing widget hub (group
+    /// <c>conversation:{conversationId}</c>). Used to stream agent outbound replies straight to the
+    /// website-chat widget without the visitor joining the tenant's agent group.
+    /// </summary>
+    Task NotifyVisitorMessageAsync(
+        Guid conversationId,
+        Guid messageId,
+        string direction,
+        string senderType,
+        string contentType,
+        string text,
+        DateTimeOffset createdAt,
+        string deliveryStatus,
+        CancellationToken cancellationToken);
 }

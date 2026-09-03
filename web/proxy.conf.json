@@ -9,5 +9,11 @@
     "secure": false,
     "changeOrigin": true,
     "ws": true
+  },
+  "/hubs/widget": {
+    "target": "http://localhost:5068",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true
   }
 }
