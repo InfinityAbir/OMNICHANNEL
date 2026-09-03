@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.Configure<WidgetTokenOptions>(configuration.GetSection(WidgetTokenOptions.SectionName));
         services.Configure<WidgetOptions>(configuration.GetSection(WidgetOptions.SectionName));
+        services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, ScopedTenantContext>();
@@ -58,16 +59,16 @@ public static class DependencyInjection
         services.AddSingleton<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
-        // No IChannelAdapter is registered in production yet — Phase 7+ adds one per provider
-        // (e.g. AddScoped<IChannelAdapter, WhatsAppChannelAdapter>()) as each channel ships
-        // (PRD §65: "do not implement all providers at once"). The registry and pipeline below
-        // work correctly with zero registered adapters — every real channel type just resolves
-        // to null until then, and Manual/WebsiteChat were never meant to go through this path.
-        // Scoped, not Singleton — a future adapter (Phase 7+) may itself be Scoped (e.g. needs a
-        // per-request DbContext), and capturing it into a Singleton registry would be a captive
-        // dependency. The registry is cheap to rebuild per scope either way.
+        // Scoped, not Singleton — a future adapter may itself be Scoped (e.g. needs a per-request
+        // DbContext), and capturing it into a Singleton registry would be a captive dependency.
+        // The registry is cheap to rebuild per scope either way.
         services.AddScoped<IChannelAdapterRegistry, ChannelAdapterRegistry>();
         services.AddScoped<IChannelCredentialStore, DataProtectionChannelCredentialStore>();
+
+        // Phase 7's first real adapter (PRD §66) — remaining channel types (Instagram, Messenger)
+        // still resolve to null in the registry until their own phase registers one (PRD §65: "do
+        // not implement all providers at once").
+        services.AddHttpClient<IChannelAdapter, WhatsAppChannelAdapter>();
 
         services.AddSignalRNotifier();
 

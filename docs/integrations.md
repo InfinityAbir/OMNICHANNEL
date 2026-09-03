@@ -12,9 +12,21 @@ Phase 5 (Website chat) and Phase 6 (generic channel adapter framework) are imple
    Polly-based retry with provider-error classification). Zero adapters registered in production —
    every real channel type currently 404s at `/webhooks/{channelType}` until Phase 7+ registers
    one. See "Connecting a new channel" below.
-3. Phase 7 — WhatsApp Business Platform.
+3. Phase 7 — WhatsApp Business Platform (**implemented**; text-only send, all inbound message
+   types accepted and normalized, media download not yet implemented). See
+   [ADR-0017](decisions/ADR-0017-whatsapp-integration.md).
 4. Phase 8 — Instagram messaging (Meta).
 5. Phase 9 — Facebook Messenger (Meta).
+
+**WhatsApp (Phase 7) setup**: connect via `PUT /api/v1/channels/whatsapp/account`
+(`{"externalAccountId": "<phone_number_id>"}`) and `PUT /api/v1/channels/whatsapp/credentials`
+(`{"secret": "<permanent access token>"}`) — both `ChannelsManage`-permission, agent-facing.
+Webhook subscription (configured once, in the Meta App Dashboard, by whoever operates this
+platform's Meta App — not per-tenant): URL `https://YOUR-API/webhooks/whatsapp`, Verify Token =
+`WhatsApp:VerifyToken` config. Both `WhatsApp:AppSecret` and `WhatsApp:VerifyToken` are secrets —
+set via `dotnet user-secrets`/environment/deployment secret store, never committed (same pattern
+as `Jwt:SigningKey`). No template-message support — an agent reply outside the 24-hour customer
+service window fails with a clear error rather than silently dropping or retrying forever.
 
 **Connecting a new channel (Phase 7+ implementer checklist):**
 

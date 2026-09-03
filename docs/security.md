@@ -3,6 +3,31 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 7 controls (WhatsApp Integration)
+
+- **Webhook signature verification** (PRD §66 focus): `X-Hub-Signature-256` HMAC-SHA256 over the
+  raw body using the platform's App Secret, compared with `CryptographicOperations.FixedTimeEquals`
+  (constant-time — not `==`, to avoid a timing side channel on the comparison itself). The
+  verify-token comparison for the GET handshake uses the same constant-time helper. Verified:
+  `WhatsAppChannelAdapterTests` (tampered body, missing header) and end-to-end
+  `WhatsAppWebhookSecurityTests.Webhook_ForgedSignature_IsRejectedAndNeverPersisted` against the
+  real production adapter, not just a fake.
+- **Credential encryption / token lifecycle**: the WABA access token is stored via the same
+  `IChannelCredentialStore` (Data Protection encryption) as every other channel (ADR-0016) — no
+  WhatsApp-specific exception. Token expiry (`error code 190`) surfaces as `AuthFailed`, fails
+  fast, never retried — an expired token retried automatically would just fail the same way
+  repeatedly while masking the real problem from whoever needs to rotate it.
+- **Replay protection**: inherited unchanged from the generic pipeline's idempotency guarantee
+  (ADR-0016) — WhatsApp's own `id`/`wamid...` becomes `ExternalMessageId`, so Meta's documented
+  retry behavior (same event redelivered for up to 36 hours) can never create a duplicate message.
+- **Tenant/account mapping**: `phone_number_id` is the provider-assigned external account id,
+  resolved the same way every channel resolves one (ADR-0016) — verified specifically against the
+  real adapter in `WhatsAppWebhookSecurityTests.Webhook_GenuineSignature_RoutesOnlyToConnectedTenant`,
+  not just the generic fake-adapter test from Phase 6.
+- **Outbound authorization**: sending is always scoped to the conversation's own
+  `ChannelAccount`/tenant (`ConversationService.AddMessageAsync` → `ChannelSendService`) — there is
+  no code path that lets one tenant's outbound send use another tenant's stored credential.
+
 ## Phase 6 controls (Channel Adapter Framework)
 
 - **Webhook spoofing.** Every inbound webhook (`POST /webhooks/{channelType}`) runs the adapter's
@@ -228,16 +253,29 @@ it's inherited by every later phase instead of retrofitted once real customer da
 
 ## Not yet applicable (tracked for their phase)
 
-- Provider-specific webhook signature schemes (WhatsApp/Instagram/Messenger's actual HMAC
-  formats), OAuth/credential lifecycle, media download SSRF hardening — Phase 7+, once a real
-  adapter exists to implement them. The generic mechanism (verify-before-parse, idempotency,
-  encrypted credential storage) is in place as of Phase 6 — see "Phase 6 controls" above.
+- Instagram/Messenger's own webhook signature schemes (likely the same Graph API mechanism as
+  WhatsApp's, per ADR-0017's consequences — to be confirmed during Phase 8/9's own
+  documentation-first step, not assumed) — Phase 8/9.
+- Media download SSRF hardening, Embedded Signup (OAuth self-service connection) — deferred by
+  ADR-0017; not yet needed since Phase 7 has no media-fetching code and connection is manual entry.
 - AI-specific threats (prompt injection, cross-tenant retrieval leakage, output validation) —
   Phase 10+; see [ai.md](ai.md).
 - File upload/attachment security — Phase 5+ (website chat is the first channel with
   attachments).
 
 ## Security review log
+
+**Phase 7** (2026-09-04) — scope: WhatsApp Business Platform integration, the first real
+`IChannelAdapter`. Reviewed against PRD §66's explicit focus list: webhook signature verification
+(constant-time HMAC comparison, verified against both a hand-computed test signature and the real
+production adapter — not just the Phase 6 fake), credential encryption (reuses Phase 6's
+Data-Protection-backed store, no exception carved out), token lifecycle (expired token fails fast
+as `AuthFailed`, never silently retried), replay protection (inherited from the generic pipeline,
+unchanged), tenant/account mapping (re-verified specifically against the real adapter, not only
+the generic mechanism), outbound authorization (always scoped through the conversation's own
+channel account, no cross-tenant credential-use path). No high/critical findings. 92/92 backend
+tests green (13 new isolated adapter-logic tests, 4 new end-to-end wiring tests through the real
+HTTP pipeline, 2 new security tests against the real adapter) — CI checked, not just local output.
 
 **Phase 6** (2026-09-04) — scope: channel adapter framework. Reviewed against PRD §65's explicit
 focus list: webhook spoofing (adapter-verified before any processing, rejected deliveries

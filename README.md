@@ -101,5 +101,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 6 (External Channel Adapter Framework) — see the phase reports under `docs/phase-reports/`
-for what's been built, reviewed, and approved so far.
+Phase 7 (WhatsApp Integration) — see the phase reports under `docs/phase-reports/` for what's
+been built, reviewed, and approved so far.

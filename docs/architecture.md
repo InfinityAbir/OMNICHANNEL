@@ -119,6 +119,19 @@ phase — every real channel 404s at `/webhooks/{type}` until Phase 7+ registers
 is proven end-to-end against a test-only fake adapter instead. Full detail and the alternatives
 considered: [ADR-0016](decisions/ADR-0016-channel-adapter-framework.md).
 
+## WhatsApp integration (Phase 7)
+
+The first real `IChannelAdapter` (`WhatsAppChannelAdapter`, Infrastructure/Channels). Webhook
+verification uses a **platform-level** App Secret/Verify Token (config, not per-tenant — Meta
+signs at the App level, one App shared across all connected WABAs). Per-tenant connection is
+manual entry through Phase 6's existing generic admin endpoints (`phone_number_id` +
+access-token), not an Embedded Signup/OAuth flow. Outbound is text-only (the composer has no
+media UI); inbound accepts any message type but only extracts text content — media isn't
+downloaded yet. Provider error codes are classified into `ChannelSendErrorKind` (auth/rate-limit/
+invalid-recipient/permanent/transient) so `ChannelSendService`'s retry policy only ever retries
+what retrying can actually fix. Research findings, the App-Secret-is-platform-level reasoning, and
+alternatives considered: [ADR-0017](decisions/ADR-0017-whatsapp-integration.md).
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -127,8 +140,8 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-No *real* external channel adapters yet — the framework exists (Phase 6, above) but WhatsApp/
-Instagram/Messenger are each their own later phase (7-9) that registers one adapter apiece. No AI
-provider abstraction, no background-processing engine (Phase 6 has no workload slow enough to
-need one — see ADR-0016's alternatives). Each is scoped to its own phase per
-`OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed) for current phase status.
+Instagram/Messenger adapters don't exist yet (Phase 8/9 each register one — WhatsApp, above, is
+the first). No AI provider abstraction, no background-processing engine (no workload so far has
+been slow enough to need one — see ADR-0016's alternatives). No media/attachment download for any
+channel (ADR-0017). Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md`
+(local, not committed) for current phase status.
