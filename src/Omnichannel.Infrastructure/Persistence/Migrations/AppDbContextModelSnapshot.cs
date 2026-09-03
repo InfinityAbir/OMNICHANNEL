@@ -296,6 +296,10 @@ namespace Omnichannel.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("LastMessageAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LastMessagePreview")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(50)

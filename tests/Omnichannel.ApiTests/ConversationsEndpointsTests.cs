@@ -5,7 +5,7 @@ using Omnichannel.Contracts.Conversations;
 
 namespace Omnichannel.ApiTests;
 
-public class ConversationsEndpointsTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class ConversationsEndpointsTests(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
 {
     [Fact]
     public async Task FullConversationLifecycle_WorksEndToEnd()
@@ -56,7 +56,7 @@ public class ConversationsEndpointsTests(WebApplicationFactory<Program> factory)
         var detailResponse = await client.GetAsync(new Uri($"/api/v1/conversations/{conversation.Id}", UriKind.Relative));
         var detail = await detailResponse.Content.ReadFromJsonAsync<ConversationDetailResponse>();
         Assert.Equal("Resolved", detail!.Status);
-        Assert.Contains("billing", detail.Tags);
+        Assert.Contains(detail.Tags, t => t.Name == "billing");
 
         // List includes it.
         var listResponse = await client.GetAsync(new Uri("/api/v1/conversations?status=Resolved", UriKind.Relative));

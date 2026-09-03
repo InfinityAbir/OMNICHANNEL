@@ -24,6 +24,7 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
             var message = Message.CreateInbound(
                 tenantContext.TenantId, conversation.Id, manualChannel.Id, MessageSenderType.Customer, initialMessageText, now);
             db.Messages.Add(message);
+            conversation.TouchLastMessage(now, initialMessageText);
         }
 
         audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.created", nameof(Conversation), conversation.Id);
@@ -53,7 +54,7 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
         }
 
         db.Messages.Add(message);
-        conversation.TouchLastMessage(now);
+        conversation.TouchLastMessage(now, text);
         audit.Record(tenantContext.TenantId, tenantContext.UserId, "message.sent", nameof(Message), message.Id,
             new { direction = direction.ToString() });
 
@@ -163,7 +164,7 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
     }
 
     public async Task<KeysetResult<ConversationSummary>> ListAsync(
-        ConversationStatus? status, Guid? assignedUserId, string? cursor, int pageSize, CancellationToken cancellationToken)
+        ConversationStatus? status, Guid? assignedUserId, string? search, string? cursor, int pageSize, CancellationToken cancellationToken)
     {
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
         var decoded = KeysetCursor.Decode(cursor);
@@ -181,6 +182,17 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
         if (assignedUserId.HasValue)
         {
             query = query.Where(x => x.Conversation.AssignedUserId == assignedUserId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalizedSearch = search.Trim().ToLowerInvariant();
+
+            // Translated to SQL by EF Core, never executed as CLR code — see the identical
+            // pattern (and the reason for the pragma) in ContactService.ListAsync.
+#pragma warning disable CA1304, CA1311, CA1862
+            query = query.Where(x => x.DisplayName.ToLower().Contains(normalizedSearch));
+#pragma warning restore CA1304, CA1311, CA1862
         }
 
         if (decoded is { } cursorValue)
@@ -201,7 +213,7 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
 
         var summaries = items.Select(x => new ConversationSummary(
             x.Conversation.Id, x.Conversation.ContactId, x.DisplayName, x.Conversation.ChannelAccountId, x.Conversation.Status, x.Conversation.Priority,
-            x.Conversation.AssignedUserId, x.Conversation.LastMessageAt,
+            x.Conversation.AssignedUserId, x.Conversation.LastMessageAt, x.Conversation.LastMessagePreview,
             tagsByConversation.GetValueOrDefault(x.Conversation.Id, []))).ToList();
 
         var nextCursor = hasMore && items.Count > 0
@@ -252,15 +264,15 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
         return true;
     }
 
-    private async Task<List<string>> GetTagNamesAsync(Guid conversationId, CancellationToken cancellationToken)
+    private async Task<List<TagRef>> GetTagNamesAsync(Guid conversationId, CancellationToken cancellationToken)
         => await (
             from ct in db.ConversationTags
             where ct.ConversationId == conversationId
             join tag in db.Tags on ct.TagId equals tag.Id
-            select tag.Name
+            select new TagRef(tag.Id, tag.Name)
         ).ToListAsync(cancellationToken);
 
-    private async Task<Dictionary<Guid, List<string>>> GetTagNamesForConversationsAsync(
+    private async Task<Dictionary<Guid, List<TagRef>>> GetTagNamesForConversationsAsync(
         IEnumerable<Guid> conversationIds, CancellationToken cancellationToken)
     {
         var ids = conversationIds.ToList();
@@ -273,11 +285,11 @@ public sealed class ConversationService(IAppDbContext db, AuditService audit, IT
             from ct in db.ConversationTags
             where ids.Contains(ct.ConversationId)
             join tag in db.Tags on ct.TagId equals tag.Id
-            select new { ct.ConversationId, tag.Name }
+            select new { ct.ConversationId, Tag = new TagRef(tag.Id, tag.Name) }
         ).ToListAsync(cancellationToken);
 
         return rows
             .GroupBy(r => r.ConversationId)
-            .ToDictionary(g => g.Key, g => g.Select(r => r.Name).ToList());
+            .ToDictionary(g => g.Key, g => g.Select(r => r.Tag).ToList());
     }
 }

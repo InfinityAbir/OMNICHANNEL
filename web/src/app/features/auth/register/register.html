@@ -1,0 +1,34 @@
+<main class="auth-page">
+  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <h1>Create your account</h1>
+    <p class="subtitle">Set up your business inbox in a minute.</p>
+
+    @if (errorMessage()) {
+      <div class="alert" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <label for="businessName">Business name</label>
+    <input id="businessName" type="text" formControlName="businessName" autocomplete="organization" />
+
+    <label for="displayName">Your name</label>
+    <input id="displayName" type="text" formControlName="displayName" autocomplete="name" />
+
+    <label for="email">Email</label>
+    <input id="email" type="email" formControlName="email" autocomplete="email" />
+    @if (form.controls.email.invalid && form.controls.email.touched) {
+      <span class="field-error">Enter a valid email address.</span>
+    }
+
+    <label for="password">Password</label>
+    <input id="password" type="password" formControlName="password" autocomplete="new-password" />
+    @if (form.controls.password.invalid && form.controls.password.touched) {
+      <span class="field-error">At least 10 characters.</span>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Creating account…' : 'Create account' }}
+    </button>
+
+    <p class="switch">Already have an account? <a routerLink="/login">Sign in</a></p>
+  </form>
+</main>

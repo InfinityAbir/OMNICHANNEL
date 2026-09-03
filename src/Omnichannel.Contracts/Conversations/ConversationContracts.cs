@@ -66,13 +66,13 @@ public sealed class AddNoteRequest
 public sealed record ConversationSummaryResponse(
     Guid Id, Guid ContactId, string ContactDisplayName, Guid ChannelAccountId,
     string Status, string Priority, Guid? AssignedUserId, DateTimeOffset LastMessageAt,
-    IReadOnlyList<string> Tags);
+    string? LastMessagePreview, IReadOnlyList<TagResponse> Tags);
 
 public sealed record ConversationDetailResponse(
     Guid Id, Guid ContactId, string ContactDisplayName, Guid ChannelAccountId,
     string Status, string Priority, Guid? AssignedUserId, string AiMode,
     DateTimeOffset LastMessageAt, DateTimeOffset CreatedAt, DateTimeOffset? ClosedAt,
-    IReadOnlyList<string> Tags);
+    IReadOnlyList<TagResponse> Tags);
 
 public sealed record MessageResponse(
     Guid Id, string Direction, string SenderType, string ContentType, string Text,

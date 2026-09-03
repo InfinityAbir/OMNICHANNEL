@@ -38,7 +38,7 @@ public static class ConversationsEndpoints
     }
 
     private static async Task<IResult> ListAsync(
-        [FromQuery] string? status, [FromQuery] Guid? assignedUserId, [FromQuery] string? cursor, [FromQuery] int? pageSize,
+        [FromQuery] string? status, [FromQuery] Guid? assignedUserId, [FromQuery] string? search, [FromQuery] string? cursor, [FromQuery] int? pageSize,
         ConversationService conversations, CancellationToken cancellationToken)
     {
         ConversationStatus? statusFilter = null;
@@ -52,7 +52,7 @@ public static class ConversationsEndpoints
             statusFilter = parsed;
         }
 
-        var result = await conversations.ListAsync(statusFilter, assignedUserId, cursor, pageSize ?? 20, cancellationToken);
+        var result = await conversations.ListAsync(statusFilter, assignedUserId, search, cursor, pageSize ?? 20, cancellationToken);
         var items = result.Items.Select(ToResponse).ToList();
         return Results.Ok(new KeysetPageResponse<ConversationSummaryResponse>(items, result.NextCursor));
     }
@@ -185,9 +185,12 @@ public static class ConversationsEndpoints
 
     private static ConversationSummaryResponse ToResponse(ConversationSummary c)
         => new(c.Id, c.ContactId, c.ContactDisplayName, c.ChannelAccountId, c.Status.ToString(), c.Priority.ToString(),
-            c.AssignedUserId, c.LastMessageAt, c.Tags);
+            c.AssignedUserId, c.LastMessageAt, c.LastMessagePreview, ToTagResponses(c.Tags));
 
     private static ConversationDetailResponse ToResponse(ConversationDetail c)
         => new(c.Id, c.ContactId, c.ContactDisplayName, c.ChannelAccountId, c.Status.ToString(), c.Priority.ToString(),
-            c.AssignedUserId, c.AiMode.ToString(), c.LastMessageAt, c.CreatedAt, c.ClosedAt, c.Tags);
+            c.AssignedUserId, c.AiMode.ToString(), c.LastMessageAt, c.CreatedAt, c.ClosedAt, ToTagResponses(c.Tags));
+
+    private static List<TagResponse> ToTagResponses(IReadOnlyList<TagRef> tags)
+        => tags.Select(t => new TagResponse(t.Id, t.Name)).ToList();
 }

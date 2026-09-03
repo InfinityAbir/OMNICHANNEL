@@ -1,0 +1,58 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.25rem;
+  background: var(--gray-900);
+  color: var(--gray-0);
+  flex: none;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.tenant-name {
+  color: var(--gray-400);
+}
+
+.tenant-name::after {
+  content: '·';
+  margin-left: 0.75rem;
+  color: var(--gray-600);
+}
+
+.logout-btn {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--gray-700);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--gray-0);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: var(--gray-800);
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

@@ -1,0 +1,138 @@
+@if (loading()) {
+  <div class="detail-pane loading">
+    <app-skeleton width="40%" height="1.5rem" />
+    <app-skeleton width="60%" />
+    <app-skeleton width="100%" height="8rem" />
+  </div>
+} @else if (errored() || !detail()) {
+  <div class="detail-pane">
+    <app-empty-state title="Couldn't load this conversation" message="It may have been removed, or you don't have access." />
+  </div>
+} @else {
+  <div class="detail-pane">
+    <header class="detail-header">
+      <a class="back-link" routerLink="/inbox" aria-label="Back to conversation list">←</a>
+      <div class="header-main">
+        <h2>{{ detail()!.contactDisplayName }}</h2>
+        <p class="meta">Created {{ detail()!.createdAt | date: 'medium' }}</p>
+      </div>
+      <div class="header-controls">
+        <label class="visually-hidden" for="status-select">Status</label>
+        <select id="status-select" [ngModel]="detail()!.status" (ngModelChange)="changeStatus($event)">
+          @for (status of statuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+
+        <label class="visually-hidden" for="priority-select">Priority</label>
+        <select id="priority-select" [ngModel]="detail()!.priority" (ngModelChange)="changePriority($event)">
+          @for (priority of priorities; track priority) {
+            <option [value]="priority">{{ priority }}</option>
+          }
+        </select>
+
+        @if (detail()!.assignedUserId) {
+          <button type="button" class="btn-secondary" (click)="unassign()">Unassign</button>
+        } @else {
+          <button type="button" class="btn-secondary" (click)="assignToMe()">Assign to me</button>
+        }
+      </div>
+    </header>
+
+    <div class="tags-row">
+      @for (tag of detail()!.tags; track tag.id) {
+        <span class="badge tag">
+          {{ tag.name }}
+          <button type="button" class="tag-remove" (click)="removeTag(tag.id)" [attr.aria-label]="'Remove tag ' + tag.name">×</button>
+        </span>
+      }
+      <select class="tag-select" (change)="addExistingTag($any($event.target).value); $any($event.target).value = ''">
+        <option value="">+ Add tag</option>
+        @for (tag of allTags(); track tag.id) {
+          <option [value]="tag.name">{{ tag.name }}</option>
+        }
+      </select>
+      <input
+        class="new-tag-input"
+        type="text"
+        placeholder="New tag…"
+        [ngModel]="newTagName()"
+        (ngModelChange)="newTagName.set($event)"
+        (keydown.enter)="addNewTag()"
+      />
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" [class.active]="activeTab() === 'messages'" (click)="switchTab('messages')">Messages</button>
+      <button type="button" role="tab" [class.active]="activeTab() === 'notes'" (click)="switchTab('notes')">Internal notes</button>
+    </div>
+
+    @if (activeTab() === 'messages') {
+      <div class="timeline">
+        @if (messagesCursor()) {
+          <button type="button" class="load-older" (click)="loadOlderMessages()">Load earlier messages</button>
+        }
+
+        @if (messagesLoading()) {
+          <app-skeleton width="50%" height="2.5rem" />
+          <app-skeleton width="40%" height="2.5rem" />
+        } @else if (displayMessages().length === 0) {
+          <app-empty-state title="No messages yet" message="Send the first message below." />
+        } @else {
+          @for (message of displayMessages(); track message.id) {
+            <div class="message-row" [class.outbound]="message.direction === 'Outbound'">
+              <div class="bubble" [class.system]="message.senderType === 'System'">
+                <p class="text">{{ message.text }}</p>
+                <span class="bubble-meta">{{ message.senderType }} · {{ message.createdAt | date: 'shortTime' }}</span>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <form class="composer" (ngSubmit)="send()">
+        <label class="visually-hidden" for="composer-text">Message</label>
+        <textarea
+          id="composer-text"
+          rows="2"
+          placeholder="Type a reply…"
+          [ngModel]="composerText()"
+          (ngModelChange)="composerText.set($event)"
+          name="composerText"
+          (keydown.enter)="onComposerKeydown($event)"
+        ></textarea>
+        <button type="submit" [disabled]="sending() || composerText().trim().length === 0">
+          {{ sending() ? 'Sending…' : 'Send' }}
+        </button>
+      </form>
+    } @else {
+      <div class="notes-panel">
+        <form class="note-form" (ngSubmit)="addNote()">
+          <textarea
+            rows="2"
+            placeholder="Add an internal note — never visible to the customer…"
+            [ngModel]="noteText()"
+            (ngModelChange)="noteText.set($event)"
+            name="noteText"
+          ></textarea>
+          <button type="submit" [disabled]="savingNote() || noteText().trim().length === 0">
+            {{ savingNote() ? 'Saving…' : 'Add note' }}
+          </button>
+        </form>
+
+        @if (notesLoading()) {
+          <app-skeleton width="100%" height="3rem" />
+        } @else if (notes().length === 0) {
+          <app-empty-state title="No internal notes yet" />
+        } @else {
+          @for (note of notes(); track note.id) {
+            <div class="note-item">
+              <p class="text">{{ note.text }}</p>
+              <span class="note-meta">{{ note.createdAt | date: 'medium' }}</span>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+}

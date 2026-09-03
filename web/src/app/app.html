@@ -1,5 +1,15 @@
-<main>
-  <h1>{{ title }}</h1>
-  <p>Foundation scaffold — Phase 0. Unified inbox UI lands in Phase 3.</p>
-  <router-outlet />
-</main>
+<div class="app-shell">
+  @if (auth.isAuthenticated()) {
+    <header class="top-nav">
+      <span class="brand">Omnichannel</span>
+      <div class="nav-right">
+        <span class="tenant-name">{{ auth.currentUser()?.tenantName }}</span>
+        <span class="user-name">{{ auth.currentUser()?.displayName }}</span>
+        <button type="button" class="logout-btn" (click)="logout()">Sign out</button>
+      </div>
+    </header>
+  }
+  <main class="app-content">
+    <router-outlet />
+  </main>
+</div>

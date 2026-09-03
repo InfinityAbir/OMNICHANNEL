@@ -1,6 +1,6 @@
 # Architecture
 
-Status as of Phase 2 (Core Conversations + Contacts).
+Status as of Phase 3 (Unified Inbox UI).
 
 ## Shape
 
@@ -20,6 +20,11 @@ tests/
   Omnichannel.ApiTests/          -> Api (WebApplicationFactory)
   Omnichannel.SecurityTests/     -> Api (WebApplicationFactory, adversarial checks)
 web/                             Angular workspace (routing, SCSS, strict TS, Vitest)
+  src/app/core/                  services, models, auth interceptor/guard
+  src/app/features/auth/         login, register
+  src/app/features/inbox/        conversation list/detail, inbox page shell
+  src/app/shared/                skeleton loader, empty state
+e2e/                             Playwright — drives the real API + Angular dev server together
 ```
 
 Dependency direction is inward-only and enforced by project references. Domain must never
@@ -69,6 +74,12 @@ the same transaction as the business change (`AuditService.Record`, committed by
 service's own `SaveChangesAsync`). Conversation list and message history use keyset (cursor)
 pagination, not offset — see ADR-0012.
 
+## Frontend
+
+Angular 21, signals-based state (no NgRx), monochromatic design system, keyset cursors passed
+through opaquely. Bearer tokens in `localStorage` with a documented XSS trade-off. See
+[ADR-0013](decisions/ADR-0013-frontend-architecture.md).
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -78,5 +89,5 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 ## What's deliberately not here yet
 
 No channel adapters (WhatsApp/Instagram/Messenger/website chat), no AI provider abstraction, no
-realtime hub, no Angular UI. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
-`PLAN.md` (local, not committed) for current phase status.
+realtime hub. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md`
+(local, not committed) for current phase status.

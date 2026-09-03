@@ -3,6 +3,31 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 3 controls (Unified Inbox UI)
+
+- **Route guards**: `/inbox*` requires authentication (`authGuard`); unauthenticated visits
+  redirect to `/login`. Backend authorization remains authoritative regardless — the guard is
+  UX only, per AGENTS.md's "frontend permissions are for UX, backend is authoritative."
+- **XSS**: audited — no component uses `[innerHTML]` or `DomSanitizer.bypassSecurityTrust*`
+  anywhere. Message text, notes, and all user content render via plain Angular interpolation,
+  which HTML-escapes by default.
+- **Token storage**: JWT access/refresh tokens in `localStorage`, a documented trade-off (not an
+  oversight) — see [ADR-0013](decisions/ADR-0013-frontend-architecture.md). Depends on the XSS
+  audit above holding for every future component that touches user-supplied content.
+- **Sensitive data exposure**: no attachment previews exist yet (no attachment feature until
+  Phase 5+); nothing renders raw HTML from the server.
+- **Process finding, not a product vulnerability**: Phase 1 and Phase 2 were both reported
+  complete with "all tests pass," verified only via local `dotnet test` — neither phase's actual
+  GitHub Actions CI run was checked. Both had been failing since push (see
+  `docs/decisions` commit `5cf8f39` / the dedicated CI-fix commit in this phase's history) due to
+  environment differences invisible locally: no `Jwt:SigningKey` outside local `dotnet
+  user-secrets`, and CI's Postgres never receiving migrations. Root-caused and fixed as part of
+  this phase (`appsettings.Testing.json`, `TestWebApplicationFactory`, an explicit CI migration
+  step); user is now checking CI status after every push as a standing rule. No production
+  security impact — this was a CI/test-infrastructure gap, not a runtime vulnerability — but
+  it's exactly the kind of "looked done, wasn't verified" gap AGENTS.md's phase-gate process
+  exists to catch, so it's recorded here rather than quietly folded in.
+
 ## Phase 2 controls (Conversations + Contacts)
 
 - **Object-level authorization (IDOR/BOLA)**: every conversation/contact/message lookup goes
@@ -97,6 +122,14 @@ it's inherited by every later phase instead of retrofitted once real customer da
   attachments).
 
 ## Security review log
+
+**Phase 3** (2026-09-03) — scope: Angular auth screens, inbox UI, route guards, CI process
+finding. No new application-level findings — XSS audit clean (no `[innerHTML]`/
+`bypassSecurityTrust*` anywhere), route guards verified (unauthenticated → `/login` redirect,
+regression-tested via Playwright), backend authorization re-confirmed authoritative. One
+process-level finding fixed: CI's backend job had been failing since Phase 1's push, undetected
+because only local test runs were checked — see the Phase 3 controls section above and this
+phase's dedicated CI-fix commit. No high/critical application findings.
 
 **Phase 2** (2026-09-03) — scope: conversations, contacts, messages, tags, notes, audit. No new
 findings beyond what's documented above (which were the two attack tests explicitly deferred

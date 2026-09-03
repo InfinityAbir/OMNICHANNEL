@@ -74,6 +74,12 @@ dotnet run --project src/Omnichannel.Api   # http://localhost:5068
 cd web
 npm ci
 ng serve                                    # http://localhost:4200
+
+# 5. End-to-end tests (starts the API + Angular dev server itself)
+cd ../e2e
+npm ci
+npx playwright install chromium
+npx playwright test
 ```
 
 See [`docs/deployment.md`](docs/deployment.md) for environment details and
@@ -95,5 +101,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 2 (Core Conversations + Contacts) — see the phase reports under `docs/phase-reports/` for
-what's been built, reviewed, and approved so far.
+Phase 3 (Unified Inbox UI) — see the phase reports under `docs/phase-reports/` for what's been
+built, reviewed, and approved so far.

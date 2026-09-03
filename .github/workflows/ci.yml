@@ -85,3 +85,65 @@ jobs:
       - name: Dependency audit
         run: npm audit --audit-level=high
         continue-on-error: true
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: omnichannel
+          POSTGRES_USER: omnichannel
+          POSTGRES_PASSWORD: omnichannel_dev_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U omnichannel -d omnichannel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Apply database migrations
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.*
+          dotnet ef database update --project src/Omnichannel.Infrastructure --startup-project src/Omnichannel.Api
+        env:
+          ConnectionStrings__Default: "Host=localhost;Port=5432;Database=omnichannel;Username=omnichannel;Password=omnichannel_dev_only"
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Install e2e dependencies
+        run: npm ci
+        working-directory: e2e
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        working-directory: e2e
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

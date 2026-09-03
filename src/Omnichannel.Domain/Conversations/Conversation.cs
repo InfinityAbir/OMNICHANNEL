@@ -14,6 +14,11 @@ public sealed class Conversation : ITenantOwned
     public Guid? AssignedUserId { get; private set; }
     public ConversationAiMode AiMode { get; private set; } = ConversationAiMode.Disabled;
     public DateTimeOffset LastMessageAt { get; private set; }
+
+    /// <summary>Truncated preview of the most recent message — denormalized so the inbox list
+    /// query never needs a per-row join to the messages table.</summary>
+    public string? LastMessagePreview { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? ClosedAt { get; private set; }
@@ -37,9 +42,10 @@ public sealed class Conversation : ITenantOwned
             UpdatedAt = now,
         };
 
-    public void TouchLastMessage(DateTimeOffset now)
+    public void TouchLastMessage(DateTimeOffset now, string messageText)
     {
         LastMessageAt = now;
+        LastMessagePreview = messageText.Length > 140 ? string.Concat(messageText.AsSpan(0, 140), "…") : messageText;
         UpdatedAt = now;
     }
 

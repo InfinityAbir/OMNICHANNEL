@@ -1,0 +1,65 @@
+<div class="inbox-page">
+  <div class="inbox-toolbar">
+    <h1>Inbox</h1>
+    <button type="button" class="new-btn" (click)="openNewConversation()">+ New conversation</button>
+  </div>
+
+  <div class="panes" [class.detail-open]="!!id()">
+    <div class="list-col">
+      <app-conversation-list [refreshToken]="listRefreshToken()" />
+    </div>
+    <div class="detail-col">
+      @if (id()) {
+        <app-conversation-detail [id]="id()!" (changed)="onConversationChanged()" />
+      } @else {
+        <app-empty-state title="Select a conversation" message="Pick one from the list, or start a new one." />
+      }
+    </div>
+  </div>
+</div>
+
+@if (showNewConversation()) {
+  <div
+    class="modal-backdrop"
+    tabindex="-1"
+    (click)="closeNewConversation()"
+    (keydown.escape)="closeNewConversation()"
+  >
+    <div
+      class="modal"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-conv-title"
+    >
+      <h2 id="new-conv-title">New conversation</h2>
+
+      <label for="new-contact-name">Customer name</label>
+      <input
+        id="new-contact-name"
+        type="text"
+        [ngModel]="newContactName()"
+        (ngModelChange)="newContactName.set($event)"
+        name="newContactName"
+      />
+
+      <label for="new-message-text">First message (optional)</label>
+      <textarea
+        id="new-message-text"
+        rows="3"
+        [ngModel]="newMessageText()"
+        (ngModelChange)="newMessageText.set($event)"
+        name="newMessageText"
+      ></textarea>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeNewConversation()">Cancel</button>
+        <button type="button" class="btn-primary" [disabled]="creating() || !newContactName().trim()" (click)="createConversation()">
+          {{ creating() ? 'Creating…' : 'Create' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

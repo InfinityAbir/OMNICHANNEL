@@ -1,0 +1,80 @@
+<div class="list-pane">
+  <div class="search-row">
+    <label for="conversation-search" class="visually-hidden">Search conversations</label>
+    <input
+      id="conversation-search"
+      type="search"
+      placeholder="Search by customer name…"
+      (input)="onSearchInput($any($event.target).value)"
+    />
+  </div>
+
+  <div class="filters" role="tablist" aria-label="Conversation filters">
+    @for (filter of filters; track filter.key) {
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeFilter() === filter.key"
+        class="filter-tab"
+        [class.active]="activeFilter() === filter.key"
+        (click)="setFilter(filter.key)"
+      >
+        {{ filter.label }}
+      </button>
+    }
+  </div>
+
+  <div class="list" role="list">
+    @if (loading()) {
+      @for (i of [1, 2, 3, 4, 5]; track i) {
+        <div class="skeleton-row">
+          <app-skeleton width="2.5rem" height="2.5rem" radius="999px" />
+          <div class="skeleton-lines">
+            <app-skeleton width="60%" />
+            <app-skeleton width="90%" height="0.8rem" />
+          </div>
+        </div>
+      }
+    } @else if (errored()) {
+      <app-empty-state title="Couldn't load conversations" message="Check your connection and try again." />
+    } @else if (items().length === 0) {
+      <app-empty-state title="No conversations here" message="Nothing matches this filter yet." />
+    } @else {
+      @for (item of items(); track item.id) {
+        <a
+          class="conversation-item"
+          role="listitem"
+          [routerLink]="['/inbox', item.id]"
+          routerLinkActive="active"
+        >
+          <div class="avatar" aria-hidden="true">{{ item.contactDisplayName.charAt(0).toUpperCase() }}</div>
+          <div class="content">
+            <div class="row-top">
+              <span class="name">{{ item.contactDisplayName }}</span>
+              <span class="time">{{ item.lastMessageAt | date: 'short' }}</span>
+            </div>
+            <div class="row-bottom">
+              <span class="preview">{{ item.lastMessagePreview || 'No messages yet' }}</span>
+              @if (item.priority === 'High' || item.priority === 'Urgent') {
+                <span class="badge priority" [class.urgent]="item.priority === 'Urgent'">{{ item.priority }}</span>
+              }
+            </div>
+            @if (item.tags.length > 0) {
+              <div class="tags">
+                @for (tag of item.tags; track tag.id) {
+                  <span class="badge tag">{{ tag.name }}</span>
+                }
+              </div>
+            }
+          </div>
+        </a>
+      }
+
+      @if (nextCursor()) {
+        <button type="button" class="load-more" (click)="loadMore()" [disabled]="loadingMore()">
+          {{ loadingMore() ? 'Loading…' : 'Load more' }}
+        </button>
+      }
+    }
+  </div>
+</div>

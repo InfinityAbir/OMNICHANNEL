@@ -1,0 +1,146 @@
+.inbox-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.inbox-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.inbox-toolbar h1 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.new-btn {
+  padding: 0.5rem 0.9rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-btn:hover {
+  opacity: 0.85;
+}
+
+.panes {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 22rem 1fr;
+  min-height: 0;
+}
+
+.list-col,
+.detail-col {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.modal {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal h2 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.modal label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  margin-top: 0.75rem;
+}
+
+.modal input,
+.modal textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.88rem;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.btn-primary {
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .panes {
+    grid-template-columns: 1fr;
+  }
+
+  .list-col {
+    display: block;
+  }
+
+  .detail-col {
+    display: none;
+  }
+
+  .panes.detail-open .list-col {
+    display: none;
+  }
+
+  .panes.detail-open .detail-col {
+    display: block;
+  }
+}

@@ -32,7 +32,7 @@ All `/api/v1/auth/*` routes share a per-IP rate limit (30 req/min) — see `docs
 | GET | `/api/v1/contacts` | `conversations.read` | Paged, `?search=` (case-insensitive display-name match) |
 | GET | `/api/v1/contacts/{id}` | `conversations.read` | |
 | POST | `/api/v1/contacts` | `conversations.reply` | |
-| GET | `/api/v1/conversations` | `conversations.read` | Keyset-paginated (`?cursor=`), `?status=`, `?assignedUserId=` |
+| GET | `/api/v1/conversations` | `conversations.read` | Keyset-paginated (`?cursor=`), `?status=`, `?assignedUserId=`, `?search=` (contact name, case-insensitive) |
 | GET | `/api/v1/conversations/{id}` | `conversations.read` | |
 | POST | `/api/v1/conversations` | `conversations.reply` | `contactId` (existing) or `newContactDisplayName`; optional `initialMessageText` |
 | GET | `/api/v1/conversations/{id}/messages` | `conversations.read` | Keyset-paginated |
