@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Omnichannel.Api/Omnichannel.Api.csproj" />
+    <Project Path="src/Omnichannel.Application/Omnichannel.Application.csproj" />
+    <Project Path="src/Omnichannel.Contracts/Omnichannel.Contracts.csproj" />
+    <Project Path="src/Omnichannel.Domain/Omnichannel.Domain.csproj" />
+    <Project Path="src/Omnichannel.Infrastructure/Omnichannel.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Omnichannel.ApiTests/Omnichannel.ApiTests.csproj" />
+    <Project Path="tests/Omnichannel.IntegrationTests/Omnichannel.IntegrationTests.csproj" />
+    <Project Path="tests/Omnichannel.SecurityTests/Omnichannel.SecurityTests.csproj" />
+    <Project Path="tests/Omnichannel.UnitTests/Omnichannel.UnitTests.csproj" />
+  </Folder>
+</Solution>

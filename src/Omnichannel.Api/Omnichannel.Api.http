@@ -1,0 +1,6 @@
+@Omnichannel.Api_HostAddress = http://localhost:5068
+
+GET {{Omnichannel.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

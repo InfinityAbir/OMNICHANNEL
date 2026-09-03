@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: omnichannel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-omnichannel}
+      POSTGRES_USER: ${POSTGRES_USER:-omnichannel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omnichannel_dev_only}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - omnichannel-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omnichannel} -d ${POSTGRES_DB:-omnichannel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: uncomment for a local DB admin UI.
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: dev@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: dev_only
+  #   ports:
+  #     - "127.0.0.1:5050:80"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # Optional: local LLM for AI-feature development (Phase 10+).
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "127.0.0.1:11434:11434"
+  #   volumes:
+  #     - omnichannel-ollama-data:/root/.ollama
+
+volumes:
+  omnichannel-postgres-data:
+  # omnichannel-ollama-data:

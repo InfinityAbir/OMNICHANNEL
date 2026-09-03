@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: omnichannel
+          POSTGRES_USER: omnichannel
+          POSTGRES_PASSWORD: omnichannel_dev_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U omnichannel -d omnichannel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OMNICHANNEL_TEST_CONNECTION: "Host=localhost;Port=5432;Database=omnichannel;Username=omnichannel;Password=omnichannel_dev_only"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"
+
+      - name: Dependency vulnerability scan
+        run: dotnet list package --vulnerable --include-transitive
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npx ng lint
+
+      - name: Build
+        run: npx ng build
+
+      - name: Test
+        run: npx ng test --watch=false
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+        continue-on-error: true

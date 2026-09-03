@@ -1,0 +1,40 @@
+# Local-only tracking docs (per user instruction — never commit/push these)
+/PLAN.md
+/STATUS.md
+/ARCHITECTURE.md
+/FEEDBACK.md
+/MEMORY.md
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Angular / Node
+web/node_modules/
+web/dist/
+web/.angular/
+npm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.key
+
+# EF Core
+*.db
+*.db-shm
+*.db-wal
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Docker
+docker-compose.override.yml

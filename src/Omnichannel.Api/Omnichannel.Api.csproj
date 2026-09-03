@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Http" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Enrichers.CorrelationId" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Omnichannel.Application\Omnichannel.Application.csproj" />
+    <ProjectReference Include="..\Omnichannel.Infrastructure\Omnichannel.Infrastructure.csproj" />
+    <ProjectReference Include="..\Omnichannel.Contracts\Omnichannel.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets Omnichannel.ApiTests / Omnichannel.SecurityTests use WebApplicationFactory<Program>
+         against the implicit top-level-statements Program class without exposing it publicly. -->
+    <InternalsVisibleTo Include="Omnichannel.ApiTests" />
+    <InternalsVisibleTo Include="Omnichannel.SecurityTests" />
+  </ItemGroup>
+
+</Project>
