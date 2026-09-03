@@ -29,7 +29,9 @@ public static class RoleSeeder
             // Another process seeded the same fixed rows between our check and this insert
             // (e.g. two WebApplicationFactory hosts starting concurrently in tests) — the
             // unique index on SystemRole guarantees no duplicate, so this is a benign race,
-            // not a real failure.
+            // not a real failure. Clear the change tracker so the failed insert attempts are
+            // detached; otherwise EF will keep re-sending them on the next SaveChangesAsync.
+            db.ChangeTracker.Clear();
         }
     }
 
