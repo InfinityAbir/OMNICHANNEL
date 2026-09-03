@@ -17,7 +17,7 @@
   })();
   if (!script || !script.getAttribute("data-slug")) return;
 
-  var FILE = /\/[^\/]*\.js(\?.*)?$/i;
+  var FILE = /\/widget\/[^\/]*\.js(\?.*)?$/i;
   var apiBase = (script.getAttribute("src") || "").replace(FILE, "");
   var slug = script.getAttribute("data-slug");
   var storageKey = "omnichannel_widget_" + slug + "_visitor";
@@ -60,24 +60,30 @@
 
   // ---- state -------------------------------------------------------------------------------
   var session = null; // { sessionToken, conversationId, connectionUrl }
+  var sessionPromise = null; // in-flight /Session call so rapid interactions share one session
   var connection = null;
   var active = false;
   var rootEl = null;
 
-  function vm() { return window.omnichannelSignalR; }
+  function vm() { return window.signalR; }
 
   function connect() {
     if (connection) return;
     if (!vm() || !vm().HubConnectionBuilder) return;
-    connection = new vm().HubConnectionBuilder()
-      .withUrl(session.connectionUrl + "?access_token=" + encodeURIComponent(session.sessionToken))
-      .withAutomaticReconnect()
-      .build();
-    connection.on("newMessage", function (msg) {
-      if (!msg || !msg.messageId) return;
-      appendMessage({ id: msg.messageId, direction: msg.direction, text: msg.text, createdAt: msg.createdAt });
-    });
-    connection.start().catch(function () { /* retry via automatic reconnect */ });
+    try {
+      connection = new window.signalR.HubConnectionBuilder()
+        .withUrl(session.connectionUrl + "?access_token=" + encodeURIComponent(session.sessionToken))
+        .withAutomaticReconnect()
+        .build();
+      connection.on("new_message", function (msg) {
+        if (!msg || !msg.messageId) return;
+        appendMessage({ id: msg.messageId, direction: msg.direction, text: msg.text, createdAt: msg.createdAt });
+      });
+      connection.onclose(function () { connection = null; });
+      connection.start().catch(function () { /* logged below; widget degrades to non-realtime */ });
+    } catch (e) {
+      console.error("[widget-signalr] connect failed", e && e.message);
+    }
   }
 
   function appendMessage(msg) {
@@ -93,7 +99,10 @@
   }
 
   function openSession() {
-    return fetch(apiBase + "/widget/" + encodeURIComponent(slug) + "/session", {
+    // Return the in-flight session request if one is already opening, so rapid interactions
+    // (e.g. sending a message immediately after opening the chat) share a single session.
+    if (sessionPromise) return sessionPromise;
+    sessionPromise = fetch(apiBase + "/widget/" + encodeURIComponent(slug) + "/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visitorKey: getVisitorKey(), visitorName: null })
@@ -105,7 +114,12 @@
       connection = null;
       connect();
       loadThread();
+      return session;
+    }).catch(function (err) {
+      sessionPromise = null; // allow a retry on the next open
+      throw err;
     });
+    return sessionPromise;
   }
 
   function loadThread() {
@@ -120,12 +134,16 @@
   }
 
   function sendMessage(text) {
-    if (!session || !text.trim()) return;
+    if (!text.trim()) return;
+    // Render optimistically immediately, then wait for the session if it is still opening so the
+    // message is never silently lost.
     appendMessage({ id: null, direction: "inbound", text: text.trim(), createdAt: new Date().toISOString() });
-    return fetch(apiBase + "/widget/conversations/" + session.conversationId + "/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.sessionToken },
-      body: JSON.stringify({ conversationId: session.conversationId, text: text.trim() })
+    return (session ? Promise.resolve(session) : openSession()).then(function () {
+      return fetch(apiBase + "/widget/conversations/" + session.conversationId + "/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.sessionToken },
+        body: JSON.stringify({ conversationId: session.conversationId, text: text.trim() })
+      });
     }).catch(function () { /* the optimistic message stays; reload thread will reconcile */ });
   }
 

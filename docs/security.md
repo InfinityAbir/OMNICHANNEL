@@ -3,6 +3,42 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 5 controls (Website Chat Channel / Widget)
+
+- **Token classes are audience-disjoint.** The widget uses a short-lived session JWT with a
+  distinct audience (`omnichannel-widget`) and claim set (`tenant_id`, `visitor_id`,
+  `widget_session_id`, `conversation_id`, `sub`), sharing the agent issuer + signing key. The
+  agent scheme rejects a widget token (audience mismatch) and the widget scheme rejects an agent
+  token (wrong audience / missing visitor claims) — so a widget token can never call agent APIs
+  and an agent token can never drive the widget. See
+  [ADR-0015](decisions/ADR-0015-website-chat-widget.md).
+- **Origin validation is server-side at session creation.** `POST /widget/{slug}/session` is only
+  accepted when the embedding page's `Origin` is in the tenant's widget allowlist
+  (`WidgetChannelSettings.AllowedOrigins`). Once a token is issued, all access is scoped to the
+  conversation via token claims; the origin isn't re-checked per call because the token itself is
+  the boundary.
+- **Tenant isolation end-to-end.** The widget token carries `tenant_id`, so the EF global query
+  filter and `ScopedTenantContext` scope every widget query. `conversation_id` on the token (never
+  client input) bounds the realtime group (`conversation:{id}`). There is no client-join path, so
+  a visitor cannot subscribe to another conversation — cross-conversation/tenant access requires
+  forging a token, which the signing key prevents.
+- **CORS on the widget surface reflects origin + credentials** (`SetIsOriginAllowed`, 
+  `AllowCredentials`) because SignalR's negotiate fetch is `credentials: 'include'`. Safe because
+  widget auth is bearer-token based and **never cookie-based** — the server never trusts cookies,
+  so echoing the origin grants no extra privilege. Agent/internal APIs stay under the strict
+  `Default` allowlist. Re-verify before any future cookie-based widget authentication.
+- **Mouse/agent scheme isolation.** The default agent bearer scheme short-circuits
+  (`OnMessageReceived → NoResult()`) on `/widget` and `/hubs/widget`, so it never attempts to
+  validate a widget token and never emits the misleading `IDX10214 Audience validation failed`
+  logs; the dedicated `"Widget"` scheme is authoritative on those paths.
+- **XSS in the embed.** All message text (untrusted visitor and agent content) is rendered as
+  HTML-escaped text (`embed.js` `escapeHtml`); no raw content is ever injected into the widget
+  DOM. CSP is relaxed to `default-src 'self'` **only** on `/widget` paths (the embed must load its
+  own same-origin assets and contains no tenant data); everywhere else stays
+  `default-src 'none'; frame-ancestors 'none'`.
+- **No secrets / tenant data in the client bundle.** The embed, demo, and vendored SignalR bundle
+  are static and contain no credentials; all logic and data live behind `/widget` API calls.
+
 ## Phase 4 controls (Realtime Messaging / SignalR)
 
 - **Connection authentication**: hub connections require a valid JWT (Policy
@@ -151,6 +187,16 @@ it's inherited by every later phase instead of retrofitted once real customer da
   attachments).
 
 ## Security review log
+
+**Phase 5** (2026-09-04) — scope: website chat channel. Reviewed the consumer-facing surface: the
+widget session token (audience-disjoint from agent tokens, short-lived, conversation-scoped),
+server-side origin allowlist at session creation, tenant isolation on every widget query and on the
+conversation-scoped realtime group, agent scheme short-circuit so widget tokens are only evaluated
+by the "Widget" scheme (and never mis-logged), XSS defense in the embed (all text escaped), CSP
+relaxation restricted to `/widget`, and the widget CORS policy (reflect-origin + credentials, safe
+because widget auth never trusts cookies). No high/critical application findings. Verified
+end-to-end: cross-origin visitor → agent → visitor live reply through `WidgetHub`, plus the full
+backend + E2E suites green.
 
 **Phase 4** (2026-09-04) — scope: SignalR hub, tenant-scoped groups, WebSocket auth, frontend
 realtime ingestion. No high/critical application findings. Addressed the realtime-specific threat

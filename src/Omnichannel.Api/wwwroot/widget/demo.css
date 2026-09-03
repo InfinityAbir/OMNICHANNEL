@@ -1,0 +1,4 @@
+/* Demo "customer site" page styling. */
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #111827; }
+h1 { margin-bottom: 4px; }
+.tag { color: #6b7280; font-size: 14px; }

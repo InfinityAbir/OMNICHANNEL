@@ -54,5 +54,15 @@ export default defineConfig({
       stdout: 'pipe',
       stderr: 'pipe',
     },
+    {
+      // Hosts the "customer site" on its own origin so the widget embed is cross-origin and the
+      // browser sends an Origin header that the API validates against the tenant allowlist.
+      command: 'node static-server.js',
+      url: 'http://localhost:5173/customer-demo.html',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
   ],
 });

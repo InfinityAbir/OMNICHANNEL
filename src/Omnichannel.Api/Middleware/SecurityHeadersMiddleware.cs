@@ -14,7 +14,12 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
             headers["X-Content-Type-Options"] = "nosniff";
             headers["X-Frame-Options"] = "DENY";
             headers["Referrer-Policy"] = "no-referrer";
-            headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+            // The public self-hosted widget + demo page must be able to load their own same-origin
+            // script/style assets. It contains no tenant data (all logic lives in the /widget API),
+            // so 'self' is both necessary and safe here. Everything else stays locked down.
+            headers["Content-Security-Policy"] = context.Request.Path.StartsWithSegments("/widget")
+                ? "default-src 'self'"
+                : "default-src 'none'; frame-ancestors 'none'";
             headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()";
             headers.Remove("Server");
             headers.Remove("X-Powered-By");

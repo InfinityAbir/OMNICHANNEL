@@ -90,6 +90,20 @@ DTOs (IDs + changed fields); the Angular client de-duplicates per event type and
 state, or re-fetches full detail when the event can't describe the change. See
 [ADR-0014](decisions/ADR-0014-realtime-architecture.md).
 
+## Website chat (Phase 5)
+
+Self-hosted widget served by the API from `wwwroot/widget` (embed, CSS, vendored SignalR bundle,
+demo). A site embeds it with `<script src="https://YOUR-API/widget/embed.js" data-slug="SLUG"
+defer>`. **Anonymous visitor identity** — no login. Origin validation happens server-side at
+`POST /widget/{slug}/session` against the tenant's widget allowlist; thereafter a short-lived
+session JWT (audience `omnichannel-widget`, claims `tenant_id`/`visitor_id`/`widget_session_id`/
+`conversation_id`) scopes every query and the realtime group. Widget messaging is **audience-
+disjoint** from agent tokens (one key/issuer, two audiences), so a widget token can't call agent
+APIs and vice-versa. Realtime reuses SignalR via `WidgetHub` (conversation-scoped group derived
+only from the token claim). Cross-origin is handled by a dedicated `WidgetEmbed` CORS policy
+(reflects origin + credentials; safe because widget auth is bearer-token based, never cookies).
+See [ADR-0015](decisions/ADR-0015-website-chat-widget.md).
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -98,6 +112,7 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-No channel adapters (WhatsApp/Instagram/Messenger/website chat), no AI provider abstraction, no
-background-processing engine. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
+No external channel adapters yet (WhatsApp/Instagram/Messenger — website chat shipped as Phase 5
+via the self-hosted widget), no AI provider abstraction, no background-processing engine. Each is
+scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
 `PLAN.md` (local, not committed) for current phase status.

@@ -89,10 +89,12 @@ builder.Services.AddCors(options =>
         }
     });
     // The widget embed is loaded by arbitrary customer sites and calls the public/widget endpoints
-    // cross-origin with a bearer token (no cookies), so it allows any origin explicitly. Agent and
-    // internal APIs remain under the strict "Default" allowlist above.
+    // cross-origin with a bearer token (auth is never cookie-based). SignalR's negotiate fetch uses
+    // credentials: 'include', so we echo the request origin and allow credentials rather than use the
+    // wildcard '*' (which Chromium rejects for credentialed requests). Because the widget never trusts
+    // cookies, allowing credentials here grants no additional privilege.
     options.AddPolicy("WidgetEmbed", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 });
 
 // ---- Authentication: JWT bearer, signed with the key issued at login/refresh ----
@@ -126,6 +128,17 @@ builder.Services
         {
             OnMessageReceived = context =>
             {
+                // Widget traffic is authenticated by the dedicated "Widget" scheme (below). Skip it
+                // here so the default agent scheme doesn't emit noisy, misleading audience-validation
+                // errors for widget tokens (widget audience != agent audience). NoResult() short-circuits
+                // before token validation runs (the token may be present in the Authorization header).
+                if (context.HttpContext.Request.Path.StartsWithSegments("/hubs/widget")
+                    || context.HttpContext.Request.Path.StartsWithSegments("/widget"))
+                {
+                    context.NoResult();
+                    return Task.CompletedTask;
+                }
+
                 var accessToken = context.Request.Query["access_token"];
                 if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
                 {
@@ -279,7 +292,7 @@ app.MapAuditEndpoints();
 app.MapWidgetEndpoints();
 
 app.MapHub<InboxHub>("/hubs/inbox");
-app.MapHub<WidgetHub>("/hubs/widget");
+app.MapHub<WidgetHub>("/hubs/widget").RequireCors("WidgetEmbed");
 
 // Auto-migrate only in Development/Testing — production schema changes go through a
 // deliberate, reviewed deploy step (AGENTS.md: migrations must be reviewable and tenant-safe),
