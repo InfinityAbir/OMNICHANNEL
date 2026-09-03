@@ -1,16 +1,37 @@
 # Channel Integrations
 
-Phase 5 (Website chat) is implemented as the first channel — see
-[ADR-0015](decisions/ADR-0015-website-chat-widget.md). The remaining roadmap is target
-architecture (`IChannelAdapter`, capability model, webhook pipeline) and PRD §64–68 phase order:
+Phase 5 (Website chat) and Phase 6 (generic channel adapter framework) are implemented — see
+[ADR-0015](decisions/ADR-0015-website-chat-widget.md) and
+[ADR-0016](decisions/ADR-0016-channel-adapter-framework.md). PRD §64–68 phase order:
 
 1. Phase 5 — Website chat (**implemented**; self-hosted embed served by the product API, origin
-   allowlist, conversation-scoped SignalR realtime).
-2. Phase 6 — Generic external channel adapter framework (interfaces, capability model,
-   credential model, webhook pipeline, idempotency, retry architecture).
+   allowlist, conversation-scoped SignalR realtime). Not built on `IChannelAdapter` — it predates
+   the framework and has no external provider webhook to isolate behind one.
+2. Phase 6 — Generic external channel adapter framework (**implemented**; `IChannelAdapter`,
+   capability model, encrypted credential model, webhook verify/parse/idempotent-persist pipeline,
+   Polly-based retry with provider-error classification). Zero adapters registered in production —
+   every real channel type currently 404s at `/webhooks/{channelType}` until Phase 7+ registers
+   one. See "Connecting a new channel" below.
 3. Phase 7 — WhatsApp Business Platform.
 4. Phase 8 — Instagram messaging (Meta).
 5. Phase 9 — Facebook Messenger (Meta).
+
+**Connecting a new channel (Phase 7+ implementer checklist):**
+
+1. Implement `IChannelAdapter` (`Omnichannel.Application.Abstractions`) in Infrastructure —
+   `VerifyWebhookAsync`, `ParseWebhookAsync`, `SendMessageAsync` — using the provider's own
+   documented signature scheme, payload schema, and send API. Register it:
+   `services.AddScoped<IChannelAdapter, YourProviderAdapter>()` in `AddInfrastructure`.
+2. Nothing else changes — `/webhooks/{yourChannelType}`, the credential/account admin endpoints
+   under `/api/v1/channels/{yourChannelType}`, idempotency, retry, and tenant/account resolution
+   are already generic (ADR-0016).
+3. Business connects the account: `PUT /api/v1/channels/{type}/account` (provider's external
+   account id) and `PUT /api/v1/channels/{type}/credentials` (API token/secret — encrypted at
+   rest, never returned by any response).
+4. Before writing any provider-specific code, follow PRD §66's checklist: read current official
+   documentation, identify account/permission requirements, webhook verification process,
+   messaging window/template restrictions, supported media, and rate limits — record findings
+   here rather than assuming prior knowledge of provider policy is still current.
 
 **Website chat (Phase 5) notes:** the visitor-facing surface served from `wwwroot/widget`
 (`embed.js`, `widget.css`, `signalr.min.js`, plus the demo assets). A site embeds it with

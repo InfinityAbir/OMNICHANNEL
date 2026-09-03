@@ -3,6 +3,44 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 6 controls (Channel Adapter Framework)
+
+- **Webhook spoofing.** Every inbound webhook (`POST /webhooks/{channelType}`) runs the adapter's
+  own `VerifyWebhookAsync` before any parsing or persistence — an invalid signature short-circuits
+  to a 403 with no event processed and nothing persisted (`ChannelWebhookSecurityTests.
+  Webhook_SpoofedSignature_IsRejectedAndNeverPersisted`). No adapter is registered in production
+  yet, so every real channel type currently 404s regardless — this control activates the moment
+  Phase 7 registers WhatsApp's adapter, not later.
+- **Replay/idempotency.** `WebhookIngestionService` checks for an existing
+  `(ChannelAccountId, ExternalMessageId)` before inserting, and the DB's own unique index (already
+  in place since ADR-0012, only exercised for real starting this phase) is the authoritative guard
+  against a race between two concurrent deliveries of the same event — caught as a benign
+  `DbUpdateException`, same pattern as `RoleSeeder`'s seed race. Verified: a provider redelivering
+  the identical event never creates a duplicate message.
+- **Cross-tenant/account mapping.** Inbound events resolve their `ChannelAccount` by
+  `(ChannelType, ExternalAccountId)` only — a value the *provider* assigns, never client input —
+  and that id is unique per channel type across all tenants (DB constraint), so one tenant's
+  connected account can never resolve into another tenant's data even though the lookup itself
+  runs `IgnoreQueryFilters()` (ADR-0016; the third documented exception to the global tenant
+  filter). Verified: `ChannelWebhookSecurityTests.
+  Webhook_InboundEvent_NeverReachesAnotherTenantsChannelAccount`.
+- **Credential handling.** Provider secrets are encrypted at rest via ASP.NET Core Data Protection
+  (`DataProtectionChannelCredentialStore`) and never appear in any API response — `PUT
+  .../credentials` returns only `{configured: true}`, `GET` never echoes the secret back
+  (`ChannelWebhookEndpointsTests.Credentials_NeverReturnedInApiResponse`). Plaintext exists only
+  for the duration of a Set/Get call.
+- **SSRF.** Not yet applicable — Phase 6 has no code path that fetches a URL found inside webhook
+  payload content (no media handling exists yet). Tracked for whichever channel first adds media
+  download (likely Phase 7's WhatsApp media handling), which must fetch through a host/scheme
+  allowlist and size/timeout bounds, not a bare `HttpClient.GetAsync` on provider-supplied URLs.
+- **Provider response validation / error normalization.** `ChannelSendResult`/
+  `ChannelSendErrorKind` force every adapter to classify its own failures rather than letting a raw
+  provider exception surface; only `Transient`/`RateLimited` retry, everything else fails fast
+  (see ADR-0016).
+- **Retry architecture** doesn't create an amplification vector: retries are bounded (3 attempts,
+  exponential backoff), scoped to one outbound send, and never triggered by inbound webhook
+  processing (which acks fast and relies on the *provider's* retry, not its own).
+
 ## Phase 5 controls (Website Chat Channel / Widget)
 
 - **Token classes are audience-disjoint.** The widget uses a short-lived session JWT with a
@@ -190,13 +228,29 @@ it's inherited by every later phase instead of retrofitted once real customer da
 
 ## Not yet applicable (tracked for their phase)
 
-- Webhook signature verification, replay protection — Phase 6+.
+- Provider-specific webhook signature schemes (WhatsApp/Instagram/Messenger's actual HMAC
+  formats), OAuth/credential lifecycle, media download SSRF hardening — Phase 7+, once a real
+  adapter exists to implement them. The generic mechanism (verify-before-parse, idempotency,
+  encrypted credential storage) is in place as of Phase 6 — see "Phase 6 controls" above.
 - AI-specific threats (prompt injection, cross-tenant retrieval leakage, output validation) —
   Phase 10+; see [ai.md](ai.md).
 - File upload/attachment security — Phase 5+ (website chat is the first channel with
   attachments).
 
 ## Security review log
+
+**Phase 6** (2026-09-04) — scope: channel adapter framework. Reviewed against PRD §65's explicit
+focus list: webhook spoofing (adapter-verified before any processing, rejected deliveries
+persist nothing), replay attacks (idempotent on `(ChannelAccountId, ExternalMessageId)`, DB-level
+guarantee, not just an application check), credential handling (Data Protection encryption at
+rest, never returned by any API response), external payload validation (malformed events in a
+batch are skipped individually, never fatal to the whole delivery), SSRF risks (not yet
+applicable — no media-fetching code exists yet, tracked for Phase 7), provider response validation
+(adapters must classify every failure into a fixed error-kind enum, no raw exception leaks past
+the adapter boundary). No high/critical findings. Verified end-to-end against a test-only fake
+adapter (no real provider exists until Phase 7): spoofed-signature rejection, cross-tenant/account
+isolation, credential non-disclosure, retry/no-retry classification — full backend suite green
+(74/74) and the real GitHub Actions run checked, not just local output.
 
 **Pre-Phase-6 verification** (2026-09-04) — before starting Phase 6, independently re-verified
 Phases 4 and 5 (implemented in a separate session): full local build/test/E2E rerun, live GitHub

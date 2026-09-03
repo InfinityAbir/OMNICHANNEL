@@ -101,5 +101,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 3 (Unified Inbox UI) — see the phase reports under `docs/phase-reports/` for what's been
-built, reviewed, and approved so far.
+Phase 6 (External Channel Adapter Framework) — see the phase reports under `docs/phase-reports/`
+for what's been built, reviewed, and approved so far.

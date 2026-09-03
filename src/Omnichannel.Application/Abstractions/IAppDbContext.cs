@@ -45,5 +45,10 @@ public interface IAppDbContext
 
     DbSet<AuditLog> AuditLogs { get; }
 
+    DbSet<ChannelCredential> ChannelCredentials { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Detaches all tracked entities — used to recover from a benign concurrent-insert race (e.g. two webhook deliveries of the same event) so the next SaveChangesAsync doesn't keep re-sending the failed attempt. Same pattern as RoleSeeder's seed race.</summary>
+    void ClearChangeTracker();
 }

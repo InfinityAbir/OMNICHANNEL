@@ -104,6 +104,21 @@ only from the token claim). Cross-origin is handled by a dedicated `WidgetEmbed`
 (reflects origin + credentials; safe because widget auth is bearer-token based, never cookies).
 See [ADR-0015](decisions/ADR-0015-website-chat-widget.md).
 
+## Channel adapter framework (Phase 6)
+
+Generic seam every *external-provider* channel (WhatsApp/Instagram/Messenger — not Manual or
+WebsiteChat, which predate it and have no provider webhook to isolate) implements:
+`IChannelAdapter` (`Omnichannel.Application.Abstractions`) — verify webhook, parse into
+normalized events, send. `WebhookIngestionService` drives the pipeline generically (verify →
+parse → resolve `ChannelAccount` by `(Type, ExternalAccountId)` → idempotent persist via the
+existing `UNIQUE(ChannelAccountId, ExternalMessageId)` index → realtime notify);
+`ChannelSendService` wraps outbound sends in a Polly retry, only for transient/rate-limited
+failures. Credentials are Data-Protection-encrypted at rest (`IChannelCredentialStore`), never
+returned by any API response. `IChannelAdapterRegistry` resolves zero adapters in production this
+phase — every real channel 404s at `/webhooks/{type}` until Phase 7+ registers one; the pipeline
+is proven end-to-end against a test-only fake adapter instead. Full detail and the alternatives
+considered: [ADR-0016](decisions/ADR-0016-channel-adapter-framework.md).
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -112,7 +127,8 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-No external channel adapters yet (WhatsApp/Instagram/Messenger — website chat shipped as Phase 5
-via the self-hosted widget), no AI provider abstraction, no background-processing engine. Each is
-scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
-`PLAN.md` (local, not committed) for current phase status.
+No *real* external channel adapters yet — the framework exists (Phase 6, above) but WhatsApp/
+Instagram/Messenger are each their own later phase (7-9) that registers one adapter apiece. No AI
+provider abstraction, no background-processing engine (Phase 6 has no workload slow enough to
+need one — see ADR-0016's alternatives). Each is scoped to its own phase per
+`OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed) for current phase status.

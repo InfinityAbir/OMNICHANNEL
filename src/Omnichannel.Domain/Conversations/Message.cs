@@ -20,6 +20,8 @@ public sealed class Message : ITenantOwned
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ReceivedAt { get; private set; }
     public DateTimeOffset? SentAt { get; private set; }
+    public DateTimeOffset? DeliveredAt { get; private set; }
+    public DateTimeOffset? ReadAt { get; private set; }
     public MessageDeliveryStatus DeliveryStatus { get; private set; }
     public string? ProviderMetadata { get; private set; }
 
@@ -77,11 +79,39 @@ public sealed class Message : ITenantOwned
         };
     }
 
-    public void MarkSent(DateTimeOffset now)
+    public void MarkSent(DateTimeOffset now, string? externalMessageId = null)
     {
         DeliveryStatus = MessageDeliveryStatus.Sent;
         SentAt = now;
+        if (externalMessageId is not null)
+        {
+            ExternalMessageId = externalMessageId;
+        }
     }
 
     public void MarkFailed() => DeliveryStatus = MessageDeliveryStatus.Failed;
+
+    /// <summary>
+    /// Applies a delivery-status update reported by a provider webhook (Phase 6+ — a status
+    /// update never regresses an already-more-advanced status, since providers can redeliver
+    /// status webhooks out of order).
+    /// </summary>
+    public void ApplyProviderStatus(MessageDeliveryStatus status, DateTimeOffset now)
+    {
+        if (status <= DeliveryStatus)
+        {
+            return;
+        }
+
+        DeliveryStatus = status;
+        switch (status)
+        {
+            case MessageDeliveryStatus.Delivered:
+                DeliveredAt = now;
+                break;
+            case MessageDeliveryStatus.Read:
+                ReadAt = now;
+                break;
+        }
+    }
 }

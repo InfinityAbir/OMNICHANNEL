@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Application.Audit;
+using Omnichannel.Application.Channels;
 using Omnichannel.Application.Common;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Conversations;
@@ -12,7 +13,8 @@ public sealed class ConversationService(
     AuditService audit,
     ITenantContext tenantContext,
     TimeProvider timeProvider,
-    IRealtimeNotifier realtime)
+    IRealtimeNotifier realtime,
+    ChannelSendService channelSend)
 {
     private const int MaxPageSize = 100;
 
@@ -82,9 +84,7 @@ public sealed class ConversationService(
 
         if (direction == MessageDirection.Outbound)
         {
-            // No real channel adapter behind "Manual" — treat as delivered immediately rather
-            // than leaving it permanently "Queued".
-            message.MarkSent(now);
+            await RouteOutboundAsync(conversation, message, text, now, cancellationToken);
         }
 
         db.Messages.Add(message);
@@ -119,15 +119,17 @@ public sealed class ConversationService(
             conversation.AssignedUserId,
             cancellationToken);
 
-        // For outbound messages, also emit message status (Sent)
+        // For outbound messages, also emit the actual resulting status — Sent for the common
+        // case, but Failed when RouteOutboundAsync's provider send didn't succeed, so the agent
+        // sees the real outcome rather than an optimistic "Sent" that never happened.
         if (direction == MessageDirection.Outbound)
         {
             await realtime.NotifyMessageStatusAsync(
                 tenantContext.TenantId,
                 conversation.Id,
                 message.Id,
-                MessageDeliveryStatus.Sent,
-                now,
+                message.DeliveryStatus,
+                message.SentAt,
                 null, // deliveredAt
                 null, // readAt
                 cancellationToken);
@@ -170,6 +172,45 @@ public sealed class ConversationService(
         }
 
         return message;
+    }
+
+    /// <summary>
+    /// Routes an outbound message through the channel's provider adapter, if one is registered
+    /// (Phase 6+; nothing is registered before Phase 7). Manual/WebsiteChat have none, so this
+    /// preserves their exact prior behavior — mark sent immediately, no provider round-trip.
+    /// </summary>
+    private async Task RouteOutboundAsync(Conversation conversation, Message message, string text, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var account = await db.ChannelAccounts.SingleOrDefaultAsync(a => a.Id == conversation.ChannelAccountId, cancellationToken);
+        if (account is null)
+        {
+            message.MarkFailed();
+            return;
+        }
+
+        var recipientExternalId = await db.ContactIdentifiers
+            .Where(i => i.ContactId == conversation.ContactId && i.ChannelType == account.Type)
+            .Select(i => i.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var sendResult = recipientExternalId is null
+            ? null
+            : await channelSend.TrySendAsync(account, recipientExternalId, text, cancellationToken);
+
+        if (sendResult is null)
+        {
+            // No adapter registered for this channel (Manual/WebsiteChat) — same behavior as
+            // before Phase 6 existed.
+            message.MarkSent(now);
+        }
+        else if (sendResult.Success)
+        {
+            message.MarkSent(now, sendResult.ExternalMessageId);
+        }
+        else
+        {
+            message.MarkFailed();
+        }
     }
 
     public async Task<bool> AssignAsync(Guid conversationId, Guid assigneeUserId, CancellationToken cancellationToken)

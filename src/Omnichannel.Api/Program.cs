@@ -241,6 +241,19 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
+
+    // Provider webhooks (PRD §65): higher ceiling than the widget policy — a connected provider
+    // can legitimately burst many events from a small set of known IPs, and rejecting a
+    // legitimate delivery just means the provider retries it later, so this only needs to bound
+    // gross abuse, not shape normal traffic.
+    options.AddPolicy("webhook", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 300,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
 });
 
 builder.Services.AddApplication();
@@ -290,6 +303,7 @@ app.MapConversationsEndpoints();
 app.MapTagsEndpoints();
 app.MapAuditEndpoints();
 app.MapWidgetEndpoints();
+app.MapChannelWebhookEndpoints();
 
 app.MapHub<InboxHub>("/hubs/inbox");
 app.MapHub<WidgetHub>("/hubs/widget").RequireCors("WidgetEmbed");

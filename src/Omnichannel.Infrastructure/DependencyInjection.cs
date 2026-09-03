@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Infrastructure.Channels;
 using Omnichannel.Infrastructure.Email;
 using Omnichannel.Infrastructure.Identity;
 using Omnichannel.Infrastructure.Persistence;
@@ -56,6 +57,17 @@ public static class DependencyInjection
         services.AddSingleton<IAccessTokenGenerator, JwtAccessTokenGenerator>();
         services.AddSingleton<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        // No IChannelAdapter is registered in production yet — Phase 7+ adds one per provider
+        // (e.g. AddScoped<IChannelAdapter, WhatsAppChannelAdapter>()) as each channel ships
+        // (PRD §65: "do not implement all providers at once"). The registry and pipeline below
+        // work correctly with zero registered adapters — every real channel type just resolves
+        // to null until then, and Manual/WebsiteChat were never meant to go through this path.
+        // Scoped, not Singleton — a future adapter (Phase 7+) may itself be Scoped (e.g. needs a
+        // per-request DbContext), and capturing it into a Singleton registry would be a captive
+        // dependency. The registry is cheap to rebuild per scope either way.
+        services.AddScoped<IChannelAdapterRegistry, ChannelAdapterRegistry>();
+        services.AddScoped<IChannelCredentialStore, DataProtectionChannelCredentialStore>();
 
         services.AddSignalRNotifier();
 

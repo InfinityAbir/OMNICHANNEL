@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Omnichannel.Application.Audit;
 using Omnichannel.Application.Auth;
+using Omnichannel.Application.Channels;
 using Omnichannel.Application.Contacts;
 using Omnichannel.Application.Conversations;
 using Omnichannel.Application.Widget;
@@ -17,6 +18,8 @@ public static class DependencyInjection
         services.AddScoped<ConversationService>();
         services.AddScoped<TagService>();
         services.AddScoped<WidgetService>();
+        services.AddScoped<WebhookIngestionService>();
+        services.AddScoped<ChannelSendService>();
         return services;
     }
 }

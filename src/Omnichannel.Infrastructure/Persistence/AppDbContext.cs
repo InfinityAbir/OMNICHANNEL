@@ -55,6 +55,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    public DbSet<ChannelCredential> ChannelCredentials => Set<ChannelCredential>();
+
+    public void ClearChangeTracker() => ChangeTracker.Clear();
+
     /// <summary>
     /// Referenced (not captured as a closure constant) from the query filter lambdas built
     /// below — EF Core re-evaluates member access on the DbContext instance against whichever
