@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Domain.Authorization;
+using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
 
@@ -46,9 +47,14 @@ public sealed class AuthService(
         var ownerRole = await db.Roles.SingleAsync(r => r.SystemRole == SystemRole.Owner, cancellationToken);
         var membership = TenantMembership.Create(tenant.Id, domainUser.Id, ownerRole.Id, now);
 
+        // Every tenant gets a "Manual" channel account so conversations can be created before
+        // any real channel adapter exists (Phase 5+) — see ADR-0012.
+        var manualChannel = ChannelAccount.Create(tenant.Id, ChannelType.Manual, "Manual", now);
+
         db.UserProfiles.Add(domainUser);
         db.Tenants.Add(tenant);
         db.Memberships.Add(membership);
+        db.ChannelAccounts.Add(manualChannel);
         await db.SaveChangesAsync(cancellationToken);
 
         var confirmationToken = await identity.GenerateEmailConfirmationTokenAsync(domainUser.Id, cancellationToken);

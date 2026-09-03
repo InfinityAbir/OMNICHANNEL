@@ -1,6 +1,6 @@
 # Architecture
 
-Status as of Phase 1 (Identity + Multi-Tenancy).
+Status as of Phase 2 (Core Conversations + Contacts).
 
 ## Shape
 
@@ -60,6 +60,15 @@ profile, JWT access tokens + rotating hashed refresh tokens, permission-string a
 resolved dynamically per `PermissionKeys`. See
 [ADR-0007](decisions/ADR-0007-identity-and-auth-model.md).
 
+## Conversation engine
+
+`Contact`/`ContactIdentifier`, `ChannelAccount` (only `Manual` has working behavior — see
+[ADR-0012](decisions/ADR-0012-manual-channel-and-pagination.md)), `Conversation`, `Message`,
+`Tag`/`ConversationTag`, `InternalNote`, `AuditLog`. Every mutating action writes an audit row in
+the same transaction as the business change (`AuditService.Record`, committed by the calling
+service's own `SaveChangesAsync`). Conversation list and message history use keyset (cursor)
+pagination, not offset — see ADR-0012.
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -68,6 +77,6 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-No conversations/contacts, no channel adapters, no AI provider abstraction, no realtime hub. Each
-is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed)
-for current phase status.
+No channel adapters (WhatsApp/Instagram/Messenger/website chat), no AI provider abstraction, no
+realtime hub, no Angular UI. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
+`PLAN.md` (local, not committed) for current phase status.

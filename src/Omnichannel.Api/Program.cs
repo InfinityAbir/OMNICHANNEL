@@ -173,6 +173,10 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 
 app.MapAuthEndpoints();
 app.MapUsersEndpoints();
+app.MapContactsEndpoints();
+app.MapConversationsEndpoints();
+app.MapTagsEndpoints();
+app.MapAuditEndpoints();
 
 // Auto-migrate only in Development/Testing — production schema changes go through a
 // deliberate, reviewed deploy step (AGENTS.md: migrations must be reviewable and tenant-safe),

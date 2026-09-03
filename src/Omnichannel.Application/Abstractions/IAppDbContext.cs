@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Omnichannel.Domain.Audit;
 using Omnichannel.Domain.Authorization;
+using Omnichannel.Domain.Channels;
+using Omnichannel.Domain.Contacts;
+using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
 
@@ -19,6 +23,24 @@ public interface IAppDbContext
     DbSet<TenantMembership> Memberships { get; }
 
     DbSet<Role> Roles { get; }
+
+    DbSet<ChannelAccount> ChannelAccounts { get; }
+
+    DbSet<Contact> Contacts { get; }
+
+    DbSet<ContactIdentifier> ContactIdentifiers { get; }
+
+    DbSet<Conversation> Conversations { get; }
+
+    DbSet<Message> Messages { get; }
+
+    DbSet<Tag> Tags { get; }
+
+    DbSet<ConversationTag> ConversationTags { get; }
+
+    DbSet<InternalNote> InternalNotes { get; }
+
+    DbSet<AuditLog> AuditLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

@@ -95,5 +95,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 1 (Identity + Multi-Tenancy) — see the phase reports under `docs/phase-reports/` for
+Phase 2 (Core Conversations + Contacts) — see the phase reports under `docs/phase-reports/` for
 what's been built, reviewed, and approved so far.

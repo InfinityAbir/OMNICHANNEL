@@ -3,6 +3,28 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 2 controls (Conversations + Contacts)
+
+- **Object-level authorization (IDOR/BOLA)**: every conversation/contact/message lookup goes
+  through the tenant-filtered `IAppDbContext`, so a foreign tenant's object id resolves to
+  nothing. Cross-tenant access returns `404`, never `403` — doesn't confirm the object exists to
+  a tenant that can't see it. Regression-tested
+  (`ConversationSecurityTests.ModifiedObjectId_CannotReachAnotherTenantsConversation`), closing
+  the PRD §60 attack test Phase 1 explicitly deferred.
+- **Permission enforcement in practice**: every Phase 2 endpoint is gated by a real
+  `PermissionKeys` policy (not just wired-and-unused as in Phase 1). Regression-tested that the
+  Agent role — which has `conversations.*` but not `audit.read` — is rejected from `/api/v1/audit`
+  (`ConversationSecurityTests.AgentRole_CannotReachAuditLogEndpoint`), closing Phase 1's other
+  deferred attack test.
+- **Audit integrity**: every mutating action (create/assign/status/priority/tag/note/message)
+  writes an `AuditLog` row in the *same transaction* as the change (one `SaveChangesAsync` call)
+  — an audit entry can't be silently lost if the write itself succeeds. Metadata stays minimal
+  (e.g. `{ "tag": "billing" }`, `{ "direction": "Outbound" }`) — never full message text or
+  secrets.
+- **Message content handling**: `Message.Text` capped at 8000 chars at the DB layer; internal
+  notes are staff-only and never exposed on any customer-facing surface (none exists yet, but the
+  entity/endpoint design keeps it that way going in).
+
 ## Phase 1 controls (Identity + Multi-Tenancy)
 
 - **Password policy**: min length 10, requires digit/upper/lower/non-alphanumeric (Identity
@@ -68,12 +90,6 @@ it's inherited by every later phase instead of retrofitted once real customer da
 
 ## Not yet applicable (tracked for their phase)
 
-- Object-level authorization (IDOR/BOLA) on route-parameterized resources — no such endpoint
-  exists yet (`/users/me` takes no id); PRD §60's "modified object ID" attack test applies
-  starting Phase 2 (Conversations/Contacts) and must be added there.
-- Permission-based endpoint authorization in practice — the policy provider
-  (`PermissionPolicyProvider`) is wired and ready, but no endpoint uses it yet since there's no
-  business data to protect; first real use lands in Phase 2.
 - Webhook signature verification, replay protection — Phase 6+.
 - AI-specific threats (prompt injection, cross-tenant retrieval leakage, output validation) —
   Phase 10+; see [ai.md](ai.md).
@@ -81,6 +97,12 @@ it's inherited by every later phase instead of retrofitted once real customer da
   attachments).
 
 ## Security review log
+
+**Phase 2** (2026-09-03) — scope: conversations, contacts, messages, tags, notes, audit. No new
+findings beyond what's documented above (which were the two attack tests explicitly deferred
+from Phase 1, both now closed). Attack tests run this phase: modified object ID → another
+tenant's conversation (pass, 404), agent role → audit-log endpoint (pass, 403). No high/critical
+findings.
 
 **Phase 1** (2026-09-03) — scope: auth, tenancy, permission plumbing. Findings: 2 (see above,
 both fixed with regression tests before phase close). Attack tests run: unauthenticated →

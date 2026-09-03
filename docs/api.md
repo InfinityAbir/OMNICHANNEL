@@ -8,7 +8,7 @@ Android/iOS client later without special-casing either.
 URL-segment: `/api/v{version}/...`, default `1.0`. See
 [ADR-0008](decisions/ADR-0008-api-versioning.md).
 
-## Phase 1 endpoints
+## Phase 1 endpoints (auth)
 
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
@@ -24,6 +24,34 @@ URL-segment: `/api/v{version}/...`, default `1.0`. See
 | GET | `/api/v1/users/me` | Bearer JWT | Current user + active tenant + role + permissions |
 
 All `/api/v1/auth/*` routes share a per-IP rate limit (30 req/min) — see `docs/security.md`.
+
+## Phase 2 endpoints (conversations)
+
+| Method | Route | Permission | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/contacts` | `conversations.read` | Paged, `?search=` (case-insensitive display-name match) |
+| GET | `/api/v1/contacts/{id}` | `conversations.read` | |
+| POST | `/api/v1/contacts` | `conversations.reply` | |
+| GET | `/api/v1/conversations` | `conversations.read` | Keyset-paginated (`?cursor=`), `?status=`, `?assignedUserId=` |
+| GET | `/api/v1/conversations/{id}` | `conversations.read` | |
+| POST | `/api/v1/conversations` | `conversations.reply` | `contactId` (existing) or `newContactDisplayName`; optional `initialMessageText` |
+| GET | `/api/v1/conversations/{id}/messages` | `conversations.read` | Keyset-paginated |
+| POST | `/api/v1/conversations/{id}/messages` | `conversations.reply` | `direction`/`senderType`/`text` |
+| POST | `/api/v1/conversations/{id}/assign`, `/unassign` | `conversations.assign` | |
+| POST | `/api/v1/conversations/{id}/status` | `conversations.close` | Any `ConversationStatus` value |
+| POST | `/api/v1/conversations/{id}/priority` | `conversations.reply` | |
+| GET/POST | `/api/v1/conversations/{id}/notes` | `conversations.read` / `conversations.reply` | |
+| POST | `/api/v1/conversations/{id}/tags` | `conversations.reply` | Find-or-create by name |
+| DELETE | `/api/v1/conversations/{id}/tags/{tagId}` | `conversations.reply` | |
+| GET/POST | `/api/v1/tags` | `conversations.read` / `conversations.reply` | |
+| GET | `/api/v1/audit` | `audit.read` | Paged; Agent role cannot reach this (regression-tested) |
+
+Cross-tenant object access returns `404`, never `403` — never confirms an object exists to a
+tenant that can't see it (regression-tested, `ConversationSecurityTests`).
+
+`conversations.reply`/`.assign`/`.close` reuse the Phase 1 permission catalog rather than adding
+tag/contact/note-specific keys, since PRD's fixed 16-key catalog has none — see
+[ADR-0012](decisions/ADR-0012-manual-channel-and-pagination.md).
 
 **Known limitation**: these routes use a hard-coded `/api/v1/` prefix, not yet wired through
 `Asp.Versioning`'s actual version-resolution machinery (which is registered but unused so far —

@@ -2,7 +2,7 @@
 
 PostgreSQL 17 via EF Core + Npgsql. See [ADR-0002](decisions/ADR-0002-postgresql.md).
 
-## Current state (Phase 1)
+## Current state (Phase 2)
 
 `AppDbContext` extends `IdentityUserContext<ApplicationUser, Guid>` (not `IdentityDbContext` —
 Identity's own Role/Claim tables are unused, see [ADR-0007](decisions/ADR-0007-identity-and-auth-model.md))
@@ -16,10 +16,18 @@ plus:
 | `tenant_memberships` | `TenantMembership` — tenant-owned, unique on `(TenantId, UserId)` |
 | `roles` | 4 seeded system roles (Owner/Admin/Agent/Viewer), `permissions` as native `text[]` |
 | `refresh_tokens` | Hashed refresh tokens only, never the raw value |
+| `channel_accounts` | `ChannelAccount` — only `Manual` has behavior this phase (ADR-0012) |
+| `contacts`, `contact_identifiers` | `Contact` + per-channel handles, unique on `(TenantId, ChannelType, Value)` |
+| `conversations` | `Conversation` — indexed `(TenantId, Status, LastMessageAt)` and `(TenantId, AssignedUserId, Status)` per PRD §47 |
+| `messages` | `Message` — indexed `(ConversationId, CreatedAt)`; unique `(ChannelAccountId, ExternalMessageId)` for PRD §17 idempotency (Postgres treats each NULL as distinct) |
+| `tags`, `conversation_tags` | `Tag` (unique per tenant name) + join table |
+| `internal_notes` | `InternalNote`, indexed `(ConversationId, CreatedAt)` |
+| `audit_logs` | `AuditLog`, append-only by convention, indexed `(TenantId, Timestamp)` |
 
-Migration: `InitialIdentityAndTenancy` (`src/Omnichannel.Infrastructure/Persistence/Migrations/`).
-Applied automatically on startup in Development/Testing only — production applies migrations
-through a deliberate deploy step, not implicitly on every process start (see `Program.cs`).
+Migrations: `InitialIdentityAndTenancy`, `ConversationsContactsAndAudit`
+(`src/Omnichannel.Infrastructure/Persistence/Migrations/`). Applied automatically on startup in
+Development/Testing only — production applies migrations through a deliberate deploy step, not
+implicitly on every process start (see `Program.cs`).
 
 ## Conventions (binding from Phase 1 onward)
 

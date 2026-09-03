@@ -2,8 +2,12 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Domain.Audit;
 using Omnichannel.Domain.Authorization;
+using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Common;
+using Omnichannel.Domain.Contacts;
+using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Infrastructure.Identity;
@@ -29,6 +33,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<ChannelAccount> ChannelAccounts => Set<ChannelAccount>();
+
+    public DbSet<Contact> Contacts => Set<Contact>();
+
+    public DbSet<ContactIdentifier> ContactIdentifiers => Set<ContactIdentifier>();
+
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+
+    public DbSet<Message> Messages => Set<Message>();
+
+    public DbSet<Tag> Tags => Set<Tag>();
+
+    public DbSet<ConversationTag> ConversationTags => Set<ConversationTag>();
+
+    public DbSet<InternalNote> InternalNotes => Set<InternalNote>();
+
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     /// <summary>
     /// Referenced (not captured as a closure constant) from the query filter lambdas built
