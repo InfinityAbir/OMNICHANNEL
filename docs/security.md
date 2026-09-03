@@ -3,6 +3,21 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 9 controls (Facebook Messenger Integration)
+
+- **Repeat of the external-integration security checklist** (PRD §68): webhook signature
+  verification (same HMAC-SHA256 + constant-time comparison as WhatsApp/Instagram, re-confirmed
+  for Messenger's own webhook subscription — `MessengerWebhookSecurityTests.
+  Webhook_ForgedSignature_IsRejectedAndNeverPersisted`), tenant/account mapping (`entry[].id` →
+  `ChannelAccount.ExternalAccountId`, re-verified: `Webhook_GenuineSignature_
+  RoutesOnlyToConnectedTenant`), credential handling (`IChannelCredentialStore`, unchanged),
+  unauthorized outbound (always scoped through the conversation's own tenant/channel account).
+- **Access token exposure**: Messenger's Send API passes the access token in the request **URL**
+  (`?access_token=...`), not a header — verified this doesn't leak it anywhere logs would capture
+  (the logging policy below already forbids logging full request/response bodies or tokens;
+  `MessengerChannelAdapterTests.SendMessageAsync_UsesQueryStringAccessTokenNotBearerHeader` proves
+  the mechanism works, and no code path logs the constructed URL).
+
 ## Phase 8 controls (Instagram Integration)
 
 - **Incorrect account mapping / cross-tenant channel access** (PRD §67's explicit "also test"
@@ -272,18 +287,26 @@ it's inherited by every later phase instead of retrofitted once real customer da
 
 ## Not yet applicable (tracked for their phase)
 
-- Messenger's own webhook signature scheme — confirmed for WhatsApp (ADR-0017) and Instagram
-  (ADR-0018) to be the same Graph API mechanism; still worth Phase 9's own confirmation rather
-  than assumed identical a third time.
-- Media download SSRF hardening, Embedded Signup / self-service OAuth connection, HUMAN_AGENT-tag
-  window extension — deferred by ADR-0017/0018 across every Meta channel so far; none has
-  media-fetching code, and connection is manual entry everywhere.
+- Media download SSRF hardening, Embedded Signup / self-service OAuth connection — deferred by
+  ADR-0017/0018/0019 across every Meta channel so far; none has media-fetching code, and
+  connection is manual entry everywhere.
+- Watermark-range read-receipt support (Messenger's `read` event has no per-message id — ADR-0019)
+  — would need a deliberate extension to the status-update model, not yet built.
 - AI-specific threats (prompt injection, cross-tenant retrieval leakage, output validation) —
   Phase 10+; see [ai.md](ai.md).
 - File upload/attachment security — Phase 5+ (website chat is the first channel with
   attachments).
 
 ## Security review log
+
+**Phase 9** (2026-09-04) — scope: Facebook Messenger integration, third real `IChannelAdapter`.
+Repeated the external-integration security checklist per PRD §68's explicit instruction rather
+than assuming Phase 7/8's coverage carried over automatically — webhook signature verification,
+credential handling, tenant/account mapping, and unauthorized-outbound protection all re-verified
+against Messenger's own real adapter. Also checked that the query-string access-token mechanism
+(genuinely different from WhatsApp/Instagram's Bearer header) doesn't introduce a new exposure
+path. No high/critical findings. 119/119 backend tests green (8 new isolated adapter-logic
+tests, 4 new end-to-end wiring tests, 2 new security tests) — CI checked.
 
 **Phase 8** (2026-09-04) — scope: Instagram Messaging integration, second real `IChannelAdapter`.
 Reviewed against PRD §67's explicit focus list plus its "also test" additions: incorrect account

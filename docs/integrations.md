@@ -17,7 +17,14 @@ Phase 5 (Website chat) and Phase 6 (generic channel adapter framework) are imple
    [ADR-0017](decisions/ADR-0017-whatsapp-integration.md).
 4. Phase 8 — Instagram messaging (Meta) (**implemented**; "Instagram API with Instagram Login"
    model, text-only send). See [ADR-0018](decisions/ADR-0018-instagram-integration.md).
-5. Phase 9 — Facebook Messenger (Meta).
+5. Phase 9 — Facebook Messenger (Meta) (**implemented**; text-only send, query-string
+   access-token auth). See [ADR-0019](decisions/ADR-0019-messenger-integration.md).
+
+**Messenger (Phase 9) setup**: connect via `PUT /api/v1/channels/messenger/account`
+(`{"externalAccountId": "<Page ID>"}`) and `PUT /api/v1/channels/messenger/credentials`
+(`{"secret": "<Page access token>"}`). Webhook URL `https://YOUR-API/webhooks/messenger`, Verify
+Token = `Messenger:VerifyToken`. `Messenger:AppSecret`/`VerifyToken` are secrets, never committed.
+No read-receipt support (Messenger's `read` webhook event has no per-message id — ADR-0019).
 
 **Instagram (Phase 8) setup**: connect via `PUT /api/v1/channels/instagram/account`
 (`{"externalAccountId": "<IG-scoped account id>"}`) and `PUT /api/v1/channels/instagram/credentials`

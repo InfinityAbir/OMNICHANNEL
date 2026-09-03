@@ -144,6 +144,17 @@ commonly configures Instagram Login apps separately. Inbound webhook timestamps 
 parser. Text-only outbound, same reasoning as WhatsApp. Full research and decisions:
 [ADR-0018](decisions/ADR-0018-instagram-integration.md).
 
+## Messenger integration (Phase 9)
+
+Third real `IChannelAdapter` (`MessengerChannelAdapter`). Same Graph API webhook envelope as
+Instagram (millisecond timestamps, GET handshake, HMAC-SHA256 signature) — but its Send API
+passes the access token as an **`access_token` query-string parameter**, not a Bearer header,
+genuinely different from both WhatsApp and Instagram and confirmed by this phase's own research.
+Delivery receipts map when the webhook includes explicit `mids` (not always present per Meta's own
+docs); read receipts carry only a watermark timestamp with no per-message id and are not mapped —
+a real limitation, not an oversight (ADR-0019). Own `MessengerOptions`, not shared with the other
+two Meta channels' config.
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -152,8 +163,8 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-Messenger adapter doesn't exist yet (Phase 9 registers it — WhatsApp/Instagram, above, are the
-first two). No AI provider abstraction, no background-processing engine (no workload so far has
-been slow enough to need one — see ADR-0016's alternatives). No media/attachment download for any
-channel (ADR-0017/0018). Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
+All three PRD-scoped Meta channels (WhatsApp/Instagram/Messenger) now have real adapters. No AI
+provider abstraction, no background-processing engine (no workload so far has been slow enough to
+need one — see ADR-0016's alternatives). No media/attachment download for any channel
+(ADR-0017/0018/0019). Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
 `PLAN.md` (local, not committed) for current phase status.

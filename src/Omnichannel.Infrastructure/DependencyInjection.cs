@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.Configure<WidgetOptions>(configuration.GetSection(WidgetOptions.SectionName));
         services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
         services.Configure<InstagramOptions>(configuration.GetSection(InstagramOptions.SectionName));
+        services.Configure<MessengerOptions>(configuration.GetSection(MessengerOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, ScopedTenantContext>();
@@ -66,11 +67,10 @@ public static class DependencyInjection
         services.AddScoped<IChannelAdapterRegistry, ChannelAdapterRegistry>();
         services.AddScoped<IChannelCredentialStore, DataProtectionChannelCredentialStore>();
 
-        // Phase 7 (WhatsApp) and Phase 8 (Instagram) adapters — Messenger (Phase 9) still
-        // resolves to null in the registry until its own phase registers one (PRD §65: "do not
-        // implement all providers at once").
+        // Phase 7 (WhatsApp), Phase 8 (Instagram), Phase 9 (Messenger) adapters.
         services.AddHttpClient<IChannelAdapter, WhatsAppChannelAdapter>();
         services.AddHttpClient<IChannelAdapter, InstagramChannelAdapter>();
+        services.AddHttpClient<IChannelAdapter, MessengerChannelAdapter>();
 
         services.AddSignalRNotifier();
 
