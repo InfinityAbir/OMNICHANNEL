@@ -6,7 +6,7 @@ namespace Omnichannel.SecurityTests;
 /// Regression coverage for the Phase 0 secure-headers baseline
 /// (see Omnichannel.Api/Middleware/SecurityHeadersMiddleware.cs).
 /// </summary>
-public class SecurityHeadersTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class SecurityHeadersTests(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
 {
     [Fact]
     public async Task Response_IncludesBaselineSecurityHeaders()

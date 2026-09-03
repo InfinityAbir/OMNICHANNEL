@@ -5,7 +5,7 @@ using Omnichannel.Contracts.Auth;
 
 namespace Omnichannel.ApiTests;
 
-public class AuthEndpointsTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class AuthEndpointsTests(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
 {
     private static RegisterRequest NewRegisterRequest() => new()
     {

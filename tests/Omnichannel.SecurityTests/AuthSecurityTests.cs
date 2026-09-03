@@ -17,7 +17,7 @@ namespace Omnichannel.SecurityTests;
 /// -> another tenant's object" need a real object-with-id endpoint to attack meaningfully —
 /// those land in Phase 2 (Conversations/Contacts) and must be added there, not skipped.
 /// </summary>
-public class AuthSecurityTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class AuthSecurityTests(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
 {
     [Fact]
     public async Task Unauthenticated_CannotReachProtectedEndpoint()

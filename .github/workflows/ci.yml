@@ -39,6 +39,16 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
+      # Deterministic, independent of which test project/class happens to run first or in
+      # parallel — some tests (e.g. TenantIsolationTests) construct AppDbContext directly and
+      # never go through Program.cs's own auto-migrate-on-Testing/Development logic.
+      - name: Apply database migrations
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.*
+          dotnet ef database update --project src/Omnichannel.Infrastructure --startup-project src/Omnichannel.Api
+        env:
+          ConnectionStrings__Default: ${{ env.OMNICHANNEL_TEST_CONNECTION }}
+
       - name: Test
         run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"
 

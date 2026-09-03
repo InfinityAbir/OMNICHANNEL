@@ -16,7 +16,7 @@ namespace Omnichannel.SecurityTests;
 /// The two PRD §60 mandatory attack tests explicitly deferred from Phase 1's report — this
 /// phase is the first with object-with-id endpoints and a permission that not every role has.
 /// </summary>
-public class ConversationSecurityTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class ConversationSecurityTests(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
 {
     [Fact]
     public async Task ModifiedObjectId_CannotReachAnotherTenantsConversation()
