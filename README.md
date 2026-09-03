@@ -95,5 +95,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 0 (Engineering Foundation) — see the phase reports under `docs/phase-reports/` for what's
-been built, reviewed, and approved so far.
+Phase 1 (Identity + Multi-Tenancy) — see the phase reports under `docs/phase-reports/` for
+what's been built, reviewed, and approved so far.

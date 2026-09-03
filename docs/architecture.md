@@ -1,6 +1,6 @@
 # Architecture
 
-Status as of Phase 0 (foundation scaffold — no business logic yet).
+Status as of Phase 1 (Identity + Multi-Tenancy).
 
 ## Shape
 
@@ -25,29 +25,40 @@ web/                             Angular workspace (routing, SCSS, strict TS, Vi
 Dependency direction is inward-only and enforced by project references. Domain must never
 reference ASP.NET Core, EF Core, or any provider SDK.
 
-## Request pipeline (Phase 0 baseline)
+## Request pipeline
 
 ```
 Request
   -> HTTPS redirection
   -> Security headers (nosniff, deny-frame, locked-down CSP, no Server header)
   -> CORS (explicit allowlist from config; deny by default)
+  -> Rate limiter (per-IP, "auth" policy on /api/v1/auth/*)
+  -> Authentication (JWT bearer)
+  -> Authorization (permission-string policies, dynamically resolved)
   -> Exception handler -> RFC 7807 ProblemDetails (no internals leaked)
-  -> [future: authn/authz, tenant resolution]
   -> Endpoint
 ```
 
 ## Data
 
-PostgreSQL 17, EF Core + Npgsql, one `AppDbContext` (currently empty — Phase 1 adds
-Tenant/User/Membership). See [ADR-0002](decisions/ADR-0002-postgresql.md) and
-[database.md](database.md).
+PostgreSQL 17, EF Core + Npgsql, `AppDbContext` (Identity + Tenant/User/Membership/Role/
+RefreshToken). See [ADR-0002](decisions/ADR-0002-postgresql.md), [ADR-0007](decisions/ADR-0007-identity-and-auth-model.md),
+and [database.md](database.md).
 
 ## Multi-tenancy
 
 Shared database, `TenantId` discriminator + EF Core global query filters, tenant resolved
-server-side only. See [ADR-0005](decisions/ADR-0005-multi-tenancy-strategy.md). No tenant
-entities exist yet — this is the locked strategy Phase 1 builds against.
+server-side only from JWT claims (`ITenantContext`) — never from client input. See
+[ADR-0005](decisions/ADR-0005-multi-tenancy-strategy.md). One deliberate, documented exception:
+login/refresh's tenant-discovery query bypasses the filter (see ADR-0007) since it runs before a
+tenant context exists.
+
+## Identity and authorization
+
+ASP.NET Core Identity (credentials only) + a separate framework-free `Domain.Identity.User`
+profile, JWT access tokens + rotating hashed refresh tokens, permission-string authorization
+resolved dynamically per `PermissionKeys`. See
+[ADR-0007](decisions/ADR-0007-identity-and-auth-model.md).
 
 ## Observability
 
@@ -57,6 +68,6 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-No authentication, no domain entities, no channel adapters, no AI provider abstraction, no
-realtime hub. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md`
-(local, not committed) for current phase status.
+No conversations/contacts, no channel adapters, no AI provider abstraction, no realtime hub. Each
+is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed)
+for current phase status.

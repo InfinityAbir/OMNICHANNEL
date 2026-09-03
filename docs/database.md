@@ -2,11 +2,24 @@
 
 PostgreSQL 17 via EF Core + Npgsql. See [ADR-0002](decisions/ADR-0002-postgresql.md).
 
-## Current state (Phase 0)
+## Current state (Phase 1)
 
-`Omnichannel.Infrastructure/Persistence/AppDbContext.cs` exists with **no entities** — it exists
-only to prove the EF Core + Npgsql + `/health/ready` wiring works end-to-end. No migrations
-exist yet; the first migration lands in Phase 1 with `Tenant`, `User`, `TenantMembership`.
+`AppDbContext` extends `IdentityUserContext<ApplicationUser, Guid>` (not `IdentityDbContext` —
+Identity's own Role/Claim tables are unused, see [ADR-0007](decisions/ADR-0007-identity-and-auth-model.md))
+plus:
+
+| Table | Purpose |
+|---|---|
+| `identity_users` | ASP.NET Core Identity credential store (password hash, lockout) |
+| `app_users` | Business-facing profile (`Domain.Identity.User`), same `Id` as `identity_users` |
+| `tenants` | `Tenant` — not tenant-owned, it IS the boundary |
+| `tenant_memberships` | `TenantMembership` — tenant-owned, unique on `(TenantId, UserId)` |
+| `roles` | 4 seeded system roles (Owner/Admin/Agent/Viewer), `permissions` as native `text[]` |
+| `refresh_tokens` | Hashed refresh tokens only, never the raw value |
+
+Migration: `InitialIdentityAndTenancy` (`src/Omnichannel.Infrastructure/Persistence/Migrations/`).
+Applied automatically on startup in Development/Testing only — production applies migrations
+through a deliberate deploy step, not implicitly on every process start (see `Program.cs`).
 
 ## Conventions (binding from Phase 1 onward)
 

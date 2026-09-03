@@ -5,11 +5,22 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Needed only for IHttpContextAccessor (ScopedTenantContext). Referencing the shared
+         framework directly avoids depending on the old standalone Http.Abstractions NuGet
+         package, which would pull in a mismatched assembly version from the one the Api host
+         (Sdk.Web) uses at runtime. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
   </ItemGroup>
 
   <PropertyGroup>

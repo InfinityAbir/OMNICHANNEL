@@ -23,6 +23,10 @@ dotnet_code_quality_unused_parameters = all:warning
 dotnet_diagnostic.CA1051.severity = warning
 dotnet_diagnostic.CA2007.severity = none
 
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_diagnostic.CA1861.severity = none
+
 [*.{ts,html,scss,css,json}]
 indent_size = 2
 

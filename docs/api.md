@@ -8,14 +8,27 @@ Android/iOS client later without special-casing either.
 URL-segment: `/api/v{version}/...`, default `1.0`. See
 [ADR-0008](decisions/ADR-0008-api-versioning.md).
 
-## Phase 0 endpoints
+## Phase 1 endpoints
 
-No public API endpoints yet — only operational health checks, intentionally unversioned:
+| Method | Route | Auth | Purpose |
+|---|---|---|---|
+| GET | `/health/live` | — | Process is up (no dependency checks) |
+| GET | `/health/ready` | — | Postgres reachable |
+| POST | `/api/v1/auth/register` | — | Self-service signup: creates User + Tenant + Owner membership |
+| POST | `/api/v1/auth/login` | — | Returns access + refresh token pair |
+| POST | `/api/v1/auth/refresh` | — | Rotates a refresh token, returns a new pair |
+| POST | `/api/v1/auth/logout` | — | Revokes a refresh token |
+| GET | `/api/v1/auth/confirm-email` | — | Link-follow flow, server-rendered result page |
+| POST | `/api/v1/auth/password-reset/request` | — | Always same response — no email enumeration |
+| POST/GET | `/api/v1/auth/password-reset/form`, `/confirm` | — | Link-follow reset flow (plain HTML form; Phase 3 replaces it with a real page) |
+| GET | `/api/v1/users/me` | Bearer JWT | Current user + active tenant + role + permissions |
 
-| Method | Route | Purpose |
-|---|---|---|
-| GET | `/health/live` | Process is up (no dependency checks) |
-| GET | `/health/ready` | Postgres reachable |
+All `/api/v1/auth/*` routes share a per-IP rate limit (30 req/min) — see `docs/security.md`.
+
+**Known limitation**: these routes use a hard-coded `/api/v1/` prefix, not yet wired through
+`Asp.Versioning`'s actual version-resolution machinery (which is registered but unused so far —
+see [ADR-0008](decisions/ADR-0008-api-versioning.md)). Fine while there's only one version;
+revisit when a `v2` of any endpoint is actually needed.
 
 ## Error contract
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Omnichannel.Application.Abstractions;
 using Omnichannel.Infrastructure.Persistence;
 
 namespace Omnichannel.IntegrationTests;
@@ -21,10 +22,20 @@ public class AppDbContextConnectivityTests
             .UseNpgsql(ConnectionString)
             .Options;
 
-        await using var context = new AppDbContext(options);
+        await using var context = new AppDbContext(options, new UnauthenticatedTenantContext());
 
         var canConnect = await context.Database.CanConnectAsync();
 
         Assert.True(canConnect, "Expected to reach PostgreSQL via docker-compose (run 'docker compose up -d postgres' first).");
     }
+}
+
+/// <summary>Test double for contexts constructed outside an HTTP request.</summary>
+public sealed class UnauthenticatedTenantContext : ITenantContext
+{
+    public bool IsAuthenticated => false;
+
+    public Guid TenantId => Guid.Empty;
+
+    public Guid UserId => Guid.Empty;
 }

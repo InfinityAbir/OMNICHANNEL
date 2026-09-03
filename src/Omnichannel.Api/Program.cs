@@ -1,8 +1,19 @@
 using System.Globalization;
+using System.Text;
+using System.Threading.RateLimiting;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Omnichannel.Api.Authorization;
+using Omnichannel.Api.Endpoints;
 using Omnichannel.Api.Middleware;
 using Omnichannel.Application;
 using Omnichannel.Infrastructure;
+using Omnichannel.Infrastructure.Identity;
+using Omnichannel.Infrastructure.Persistence;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -41,7 +52,7 @@ builder.Services.AddOpenTelemetry()
         }
     });
 
-// ---- API versioning scaffold (no versioned endpoints yet — first lands in Phase 1) ----
+// ---- API versioning scaffold ----
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -77,6 +88,55 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ---- Authentication: JWT bearer, signed with the key issued at login/refresh ----
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+var jwtSigningKey = jwtSection["SigningKey"]
+    ?? throw new InvalidOperationException("Missing required configuration: Jwt:SigningKey");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Without this, the JWT bearer handler silently remaps short claim names ("sub" etc.)
+        // to long legacy XML-namespace URIs when building ClaimsPrincipal — breaking any code
+        // (like ScopedTenantContext) that looks up JwtRegisteredClaimNames.Sub directly.
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwtSection["Audience"],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+// ---- Authorization: permission-string policies resolved dynamically (PermissionKeys.*) ----
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddAuthorization();
+
+// ---- Rate limiting: brute-force protection on auth endpoints (PRD §13/§36) ----
+// Secondary defense — Identity's account lockout (5 failed attempts / 15 min, see
+// AddInfrastructure) is the primary one. This is deliberately generous per-IP (a shared
+// office/NAT connection running many legitimate signups/logins shouldn't get blocked) while
+// still meaningfully throttling distributed password-guessing.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+});
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -98,6 +158,9 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();
 app.UseCors("Default");
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -107,5 +170,22 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 {
     Predicate = check => check.Tags.Contains("ready"),
 });
+
+app.MapAuthEndpoints();
+app.MapUsersEndpoints();
+
+// Auto-migrate only in Development/Testing — production schema changes go through a
+// deliberate, reviewed deploy step (AGENTS.md: migrations must be reviewable and tenant-safe),
+// not applied implicitly on every process start. Role seeding is idempotent and always safe.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Testing")
+    {
+        await db.Database.MigrateAsync();
+    }
+
+    await RoleSeeder.SeedAsync(db, CancellationToken.None);
+}
 
 app.Run();
