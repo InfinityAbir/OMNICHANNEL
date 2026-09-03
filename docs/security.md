@@ -19,9 +19,19 @@ security review).
   the boundary.
 - **Tenant isolation end-to-end.** The widget token carries `tenant_id`, so the EF global query
   filter and `ScopedTenantContext` scope every widget query. `conversation_id` on the token (never
-  client input) bounds the realtime group (`conversation:{id}`). There is no client-join path, so
-  a visitor cannot subscribe to another conversation — cross-conversation/tenant access requires
-  forging a token, which the signing key prevents.
+  client input) bounds both the realtime group (`conversation:{id}`) and, since the Phase 6 review
+  below, the REST message endpoints — there is no client-join path and no route-id-only path, so a
+  visitor cannot reach another conversation (even one in the same tenant) without forging a token.
+  **2026-09-04 finding (fixed before Phase 6 started):** `POST/GET
+  /widget/conversations/{conversationId}/messages` originally trusted the route's `conversationId`
+  once the widget token proved tenant membership, without also checking the token's own
+  `conversation_id` claim — a real cross-visitor BOLA within one tenant (any visitor with a valid
+  session could read/write any other visitor's conversation by obtaining its GUID). The realtime
+  hub path was never affected (it always scoped by the token claim). Fixed in
+  `WidgetEndpoints.TokenConversationMatches`: both endpoints now 404 (not 403, same
+  don't-confirm-existence convention as `ConversationSecurityTests`) when the route id doesn't
+  match the token's own conversation. Regression test:
+  `WidgetEndpointsTests.WidgetSession_CannotReachAnotherVisitorsConversation`.
 - **CORS on the widget surface reflects origin + credentials** (`SetIsOriginAllowed`, 
   `AllowCredentials`) because SignalR's negotiate fetch is `credentials: 'include'`. Safe because
   widget auth is bearer-token based and **never cookie-based** — the server never trusts cookies,
@@ -187,6 +197,15 @@ it's inherited by every later phase instead of retrofitted once real customer da
   attachments).
 
 ## Security review log
+
+**Pre-Phase-6 verification** (2026-09-04) — before starting Phase 6, independently re-verified
+Phases 4 and 5 (implemented in a separate session): full local build/test/E2E rerun, live GitHub
+Actions run re-checked green, and a fresh read of the widget's security-sensitive code rather than
+trusting the phase report's claims at face value. Found and fixed one real medium-severity gap:
+a cross-visitor BOLA on the widget message REST endpoints (see the Phase 5 controls section above,
+"2026-09-04 finding") — the SignalR realtime path was already correctly scoped by the token's
+`conversation_id` claim, but the REST endpoints were not. No other findings; both phases otherwise
+hold up under review.
 
 **Phase 5** (2026-09-04) — scope: website chat channel. Reviewed the consumer-facing surface: the
 widget session token (audience-disjoint from agent tokens, short-lived, conversation-scoped),

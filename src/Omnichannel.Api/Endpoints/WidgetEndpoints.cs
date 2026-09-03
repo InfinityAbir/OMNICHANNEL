@@ -78,12 +78,22 @@ public static class WidgetEndpoints
         Guid conversationId,
         [Microsoft.AspNetCore.Mvc.FromBody] WidgetSendRequest request,
         ITenantContext tenantContext,
+        HttpContext http,
         WidgetService widget,
         CancellationToken cancellationToken)
     {
         if (!tenantContext.IsAuthenticated || tenantContext.TenantId == Guid.Empty)
         {
             return Results.Unauthorized();
+        }
+        if (!TokenConversationMatches(http, conversationId))
+        {
+            // Never confirm another visitor's conversation exists (matches ADR-0012's
+            // cross-tenant convention: 404, not 403) — the widget token is scoped to exactly one
+            // conversation via its own conversation_id claim, checked here since the route value
+            // is otherwise client-supplied and would let any tenant visitor read/write any other
+            // visitor's conversation by guessing its id.
+            return Results.NotFound();
         }
         if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > MaxMessageLength)
         {
@@ -111,12 +121,17 @@ public static class WidgetEndpoints
     private static async Task<IResult> GetThreadAsync(
         Guid conversationId,
         ITenantContext tenantContext,
+        HttpContext http,
         WidgetService widget,
         CancellationToken cancellationToken)
     {
         if (!tenantContext.IsAuthenticated || tenantContext.TenantId == Guid.Empty)
         {
             return Results.Unauthorized();
+        }
+        if (!TokenConversationMatches(http, conversationId))
+        {
+            return Results.NotFound();
         }
 
         var messages = await widget.GetThreadAsync(tenantContext.TenantId, conversationId, cancellationToken);
@@ -177,5 +192,11 @@ public static class WidgetEndpoints
 
         return Results.Ok(new WidgetSettingsResponse(
             settings.ChannelAccountId, settings.Enabled, settings.GetAllowedOrigins(), string.Empty, string.Empty));
+    }
+
+    private static bool TokenConversationMatches(HttpContext http, Guid routeConversationId)
+    {
+        var claim = http.User.FindFirst(WidgetClaimNames.ConversationId)?.Value;
+        return Guid.TryParse(claim, out var tokenConversationId) && tokenConversationId == routeConversationId;
     }
 }

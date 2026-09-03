@@ -78,6 +78,41 @@ public class WidgetEndpointsTests(TestWebApplicationFactory factory) : IClassFix
     }
 
     [Fact]
+    public async Task WidgetSession_CannotReachAnotherVisitorsConversation()
+    {
+        var (agent, settings) = await RegisterAgentAsync();
+        await agent.PutAsJsonAsync(
+            new Uri("/api/v1/channels/widget/origins", UriKind.Relative),
+            new WidgetOriginsUpdateRequest([AllowedOrigin]));
+
+        // Two different visitors on the same tenant's widget get two different conversations.
+        var visitorA = factory.CreateClient();
+        var sessionAResponse = await OpenSessionAsync(visitorA, settings.Slug, AllowedOrigin, "visitor-a");
+        var sessionA = await sessionAResponse.Content.ReadFromJsonAsync<WidgetSessionResponse>();
+
+        var visitorB = factory.CreateClient();
+        var sessionBResponse = await OpenSessionAsync(visitorB, settings.Slug, AllowedOrigin, "visitor-b");
+        var sessionB = await sessionBResponse.Content.ReadFromJsonAsync<WidgetSessionResponse>();
+        Assert.NotEqual(sessionA!.ConversationId, sessionB!.ConversationId);
+
+        // Visitor B's valid session token must not read or write into Visitor A's conversation,
+        // even though both belong to the same tenant (a BOLA path if the route id alone were
+        // trusted — the token's own conversation_id claim must gate the object, same principle
+        // as ConversationSecurityTests' cross-tenant test, just cross-visitor within one tenant).
+        var widgetClientB = factory.CreateClient();
+        widgetClientB.UseBearer(sessionB.SessionToken);
+
+        var readOther = await widgetClientB.GetAsync(
+            new Uri($"/widget/conversations/{sessionA.ConversationId}/messages", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.NotFound, readOther.StatusCode);
+
+        var sendOther = await widgetClientB.PostAsJsonAsync(
+            new Uri($"/widget/conversations/{sessionA.ConversationId}/messages", UriKind.Relative),
+            new WidgetSendRequest(sessionA.ConversationId, "injected"));
+        Assert.Equal(HttpStatusCode.NotFound, sendOther.StatusCode);
+    }
+
+    [Fact]
     public async Task WidgetSession_UnknownSlug_ReturnsNotFound()
     {
         var visitor = factory.CreateClient();

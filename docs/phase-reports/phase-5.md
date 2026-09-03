@@ -95,7 +95,17 @@ full detail. Highlights:
 - Widget token never accepted on agent endpoints; agent token is meaningless to the widget.
 - No secrets in the client bundle; static embed assets contain no tenant data.
 
-No high/critical application findings.
+No high/critical application findings at the time.
+
+**Addendum (2026-09-04, pre-Phase-6 verification):** an independent re-review of this phase before
+starting Phase 6 found that the claim above ("conversation id is never client-supplied... no BOLA
+path into another visitor's conversation") was true for the realtime hub but not for the REST
+message endpoints — `POST`/`GET /widget/conversations/{conversationId}/messages` trusted the route
+id once the token proved tenant membership, without checking the token's own `conversation_id`
+claim, letting any visitor with a valid session reach any other visitor's conversation in the same
+tenant. Fixed same-day; see `docs/security.md`'s security review log and Phase 5 controls section
+for full detail, and `WidgetEndpointsTests.WidgetSession_CannotReachAnotherVisitorsConversation`
+for the regression test.
 
 ## Performance / Reliability / Accessibility Review
 
