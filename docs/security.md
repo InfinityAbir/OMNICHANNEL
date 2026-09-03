@@ -3,6 +3,35 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 4 controls (Realtime Messaging / SignalR)
+
+- **Connection authentication**: hub connections require a valid JWT (Policy
+  `RealtimeHub`: `RequireAuthenticatedUser()` + a `tenant_id` claim, evaluated by
+  `InboxHubAuthorizationHandler`). The hub additionally verifies both `tenant_id` and `sub`
+  claims in `OnConnectedAsync` and aborts the connection if either is missing — defense in depth,
+  so the authorization attribute and the manual check agree.
+- **WebSocket token transport**: a WebSocket can't send an `Authorization` header, so the client
+  supplies the token as `?access_token=...` via SignalR's `accessTokenFactory`.
+  `JwtBearerEvents.OnMessageReceived` reads it **only** when the request path starts with `/hubs` —
+  querystring tokens are never accepted on regular REST endpoints, so this doesn't widen the
+  REST attack surface (which would otherwise allow tokens to leak into server/access logs).
+- **Tenant isolation in groups**: exactly one SignalR group per tenant (`tenant:{tenantId}`);
+  group membership is derived from the server-issued token's `tenant_id` claim, never from a
+  client-supplied group name. The hub exposes no client-invokable "join arbitrary group" — there
+  is no way to subscribe to another tenant's group without a forged token, which the JWT signing
+  key already prevents. The notifier only ever targets `tenant:{tenantId}` derived from the
+  caller's own tenancy.
+- **Event leakage**: push payloads are minimal DTOs (ids + changed fields); no credentials, no
+  hidden prompts, no other-tenant data. Delivered only to the caller's tenant group.
+- **Reconnection / token expiry**: `withAutomaticReconnect([0,2,5,10,15,30])` reconnects with
+  backoff; on expiry the server rejects the request, the connection drops, and the client signals
+  disconnected (a later phase will route to login/refresh on top of `onclose`).
+- **Duplicate-event handling (reliability)**: client de-duplicates by event id **per event type**
+  (a shared id set would have swallowed `message_status` after the matching `new_message`, since
+  both carry the same `MessageId`); the composer de-dupes by message id so an agent doesn't see
+  their own message twice (its own connection receives the push too). Multi-tab is safe — each tab
+  connects independently and de-dupes locally.
+
 ## Phase 3 controls (Unified Inbox UI)
 
 - **Route guards**: `/inbox*` requires authentication (`authGuard`); unauthenticated visits
@@ -122,6 +151,18 @@ it's inherited by every later phase instead of retrofitted once real customer da
   attachments).
 
 ## Security review log
+
+**Phase 4** (2026-09-04) — scope: SignalR hub, tenant-scoped groups, WebSocket auth, frontend
+realtime ingestion. No high/critical application findings. Addressed the realtime-specific threat
+model per PRD §63: connection authentication (Policy `RealtimeHub` + in-hub claim check), tenant
+isolation in groups (server-derived group membership, no client-join, no cross-tenant group
+subscribe path), query-string token accepted only on `/hubs` paths, minimal-DTO event leakage, and
+a reliability/security fix where an over-broad de-dupe id set would have silently dropped
+`message_status` events. Also fixed (in this phase's later commits): a benign role-seed race in
+parallel test hosts that surfaced in CI — `RoleSeeder` now clears the EF change tracker on the
+caught `DbUpdateException` so failed inserts aren't re-sent on the next save (no runtime
+vulnerability; a test-infrastructure robustness fix). Verified end-to-end with 2 new realtime
+Playwright tests plus existing suites, all green in CI.
 
 **Phase 3** (2026-09-03) — scope: Angular auth screens, inbox UI, route guards, CI process
 finding. No new application-level findings — XSS audit clean (no `[innerHTML]`/

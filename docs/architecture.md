@@ -80,6 +80,16 @@ Angular 21, signals-based state (no NgRx), monochromatic design system, keyset c
 through opaquely. Bearer tokens in `localStorage` with a documented XSS trade-off. See
 [ADR-0013](decisions/ADR-0013-frontend-architecture.md).
 
+## Realtime
+
+SignalR hub at `/hubs/inbox`. One hub, one group per tenant (`tenant:{tenantId}`); group membership
+is derived from the server-issued `tenant_id` JWT claim, never from a client-supplied group name.
+`[Authorize(Policy = "RealtimeHub")]` on the hub plus an in-hub claim check (defense in depth);
+WebSocket auth uses the token in the query string, read only for `/hubs` paths. Events are minimal
+DTOs (IDs + changed fields); the Angular client de-duplicates per event type and patches its signal
+state, or re-fetches full detail when the event can't describe the change. See
+[ADR-0014](decisions/ADR-0014-realtime-architecture.md).
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -89,5 +99,5 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 ## What's deliberately not here yet
 
 No channel adapters (WhatsApp/Instagram/Messenger/website chat), no AI provider abstraction, no
-realtime hub. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md`
-(local, not committed) for current phase status.
+background-processing engine. Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
+`PLAN.md` (local, not committed) for current phase status.
