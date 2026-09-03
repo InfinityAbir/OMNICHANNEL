@@ -3,6 +3,25 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 8 controls (Instagram Integration)
+
+- **Incorrect account mapping / cross-tenant channel access** (PRD §67's explicit "also test"
+  items): `entry[].id` (the receiving IG account) resolves through the same
+  `(ChannelType, ExternalAccountId)` mechanism as every channel (ADR-0016), re-verified against
+  Instagram's own real adapter: `InstagramWebhookSecurityTests.
+  Webhook_GenuineSignature_RoutesOnlyToConnectedTenant` proves a webhook for Tenant A's connected
+  account never reaches Tenant B, even when both tenants have connected different Instagram
+  accounts of the same channel type.
+- **Unauthorized outbound messages**: sending is always scoped through the conversation's own
+  `ChannelAccount`/tenant, same as WhatsApp — no code path lets one tenant's send use another
+  tenant's stored credential or reach another tenant's connected account.
+- **Webhook signature verification / forgery**: same HMAC-SHA256 + constant-time comparison as
+  WhatsApp (ADR-0017's mechanism, confirmed to apply to Instagram too by this phase's own
+  research, not assumed) — `InstagramWebhookSecurityTests.
+  Webhook_ForgedSignature_IsRejectedAndNeverPersisted`.
+- **Credential handling**: reuses `IChannelCredentialStore` unchanged — no Instagram-specific
+  exception to Data Protection encryption at rest.
+
 ## Phase 7 controls (WhatsApp Integration)
 
 - **Webhook signature verification** (PRD §66 focus): `X-Hub-Signature-256` HMAC-SHA256 over the
@@ -253,17 +272,26 @@ it's inherited by every later phase instead of retrofitted once real customer da
 
 ## Not yet applicable (tracked for their phase)
 
-- Instagram/Messenger's own webhook signature schemes (likely the same Graph API mechanism as
-  WhatsApp's, per ADR-0017's consequences — to be confirmed during Phase 8/9's own
-  documentation-first step, not assumed) — Phase 8/9.
-- Media download SSRF hardening, Embedded Signup (OAuth self-service connection) — deferred by
-  ADR-0017; not yet needed since Phase 7 has no media-fetching code and connection is manual entry.
+- Messenger's own webhook signature scheme — confirmed for WhatsApp (ADR-0017) and Instagram
+  (ADR-0018) to be the same Graph API mechanism; still worth Phase 9's own confirmation rather
+  than assumed identical a third time.
+- Media download SSRF hardening, Embedded Signup / self-service OAuth connection, HUMAN_AGENT-tag
+  window extension — deferred by ADR-0017/0018 across every Meta channel so far; none has
+  media-fetching code, and connection is manual entry everywhere.
 - AI-specific threats (prompt injection, cross-tenant retrieval leakage, output validation) —
   Phase 10+; see [ai.md](ai.md).
 - File upload/attachment security — Phase 5+ (website chat is the first channel with
   attachments).
 
 ## Security review log
+
+**Phase 8** (2026-09-04) — scope: Instagram Messaging integration, second real `IChannelAdapter`.
+Reviewed against PRD §67's explicit focus list plus its "also test" additions: incorrect account
+mapping, cross-tenant channel access, unauthorized outbound messages — all re-verified against
+Instagram's own real adapter rather than relying on Phase 6/7's generic/WhatsApp coverage.
+Webhook signature verification confirmed to use the same mechanism as WhatsApp (this phase's own
+research, not assumed). No high/critical findings. 105/105 backend tests green (13 new isolated
+adapter-logic tests, 4 new end-to-end wiring tests, 2 new security tests) — CI checked.
 
 **Phase 7** (2026-09-04) — scope: WhatsApp Business Platform integration, the first real
 `IChannelAdapter`. Reviewed against PRD §66's explicit focus list: webhook signature verification

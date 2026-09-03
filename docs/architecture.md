@@ -132,6 +132,18 @@ invalid-recipient/permanent/transient) so `ChannelSendService`'s retry policy on
 what retrying can actually fix. Research findings, the App-Secret-is-platform-level reasoning, and
 alternatives considered: [ADR-0017](decisions/ADR-0017-whatsapp-integration.md).
 
+## Instagram integration (Phase 8)
+
+Second real `IChannelAdapter` (`InstagramChannelAdapter`), "Instagram API with Instagram Login"
+model (`graph.instagram.com`, IG-scoped ids, Instagram User access token — Meta's current
+recommendation, not the older Facebook-Login/Page-token model). Same Graph API webhook mechanics
+as WhatsApp (GET handshake, HMAC-SHA256 `X-Hub-Signature-256`), confirmed independently rather
+than assumed — but its own `InstagramOptions` (not shared with `WhatsAppOptions`), since Meta
+commonly configures Instagram Login apps separately. Inbound webhook timestamps are
+**milliseconds** (WhatsApp's are seconds) — a real, easy-to-miss difference, handled with its own
+parser. Text-only outbound, same reasoning as WhatsApp. Full research and decisions:
+[ADR-0018](decisions/ADR-0018-instagram-integration.md).
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -140,8 +152,8 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-Instagram/Messenger adapters don't exist yet (Phase 8/9 each register one — WhatsApp, above, is
-the first). No AI provider abstraction, no background-processing engine (no workload so far has
+Messenger adapter doesn't exist yet (Phase 9 registers it — WhatsApp/Instagram, above, are the
+first two). No AI provider abstraction, no background-processing engine (no workload so far has
 been slow enough to need one — see ADR-0016's alternatives). No media/attachment download for any
-channel (ADR-0017). Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md`
-(local, not committed) for current phase status.
+channel (ADR-0017/0018). Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
+`PLAN.md` (local, not committed) for current phase status.

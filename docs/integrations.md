@@ -15,8 +15,18 @@ Phase 5 (Website chat) and Phase 6 (generic channel adapter framework) are imple
 3. Phase 7 — WhatsApp Business Platform (**implemented**; text-only send, all inbound message
    types accepted and normalized, media download not yet implemented). See
    [ADR-0017](decisions/ADR-0017-whatsapp-integration.md).
-4. Phase 8 — Instagram messaging (Meta).
+4. Phase 8 — Instagram messaging (Meta) (**implemented**; "Instagram API with Instagram Login"
+   model, text-only send). See [ADR-0018](decisions/ADR-0018-instagram-integration.md).
 5. Phase 9 — Facebook Messenger (Meta).
+
+**Instagram (Phase 8) setup**: connect via `PUT /api/v1/channels/instagram/account`
+(`{"externalAccountId": "<IG-scoped account id>"}`) and `PUT /api/v1/channels/instagram/credentials`
+(`{"secret": "<Instagram User access token>"}`). Webhook URL `https://YOUR-API/webhooks/instagram`,
+Verify Token = `Instagram:VerifyToken`. `Instagram:AppSecret`/`VerifyToken` are secrets (same
+pattern as WhatsApp's) — never committed. No `HUMAN_AGENT` tag support — replies outside the
+24-hour window fail with a clear error rather than being silently dropped or auto-tagged (which
+would risk a policy violation — that tag is reserved for genuine human-agent use with its own
+compliance expectations).
 
 **WhatsApp (Phase 7) setup**: connect via `PUT /api/v1/channels/whatsapp/account`
 (`{"externalAccountId": "<phone_number_id>"}`) and `PUT /api/v1/channels/whatsapp/credentials`
