@@ -115,10 +115,16 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
       - name: Apply database migrations
         run: |
           dotnet tool install --global dotnet-ef --version 10.*
-          dotnet ef database update --project src/Omnichannel.Infrastructure --startup-project src/Omnichannel.Api
+          dotnet ef database update --project src/Omnichannel.Infrastructure --startup-project src/Omnichannel.Api --no-build --configuration Release
         env:
           ConnectionStrings__Default: "Host=localhost;Port=5432;Database=omnichannel;Username=omnichannel;Password=omnichannel_dev_only"
 

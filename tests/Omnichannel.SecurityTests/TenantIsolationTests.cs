@@ -29,6 +29,10 @@ public class TenantIsolationTests
         // never filtered, only reads are, so this reflects real seeding/migration code paths.
         await using (var seedDb = new AppDbContext(options, new FixedTenantContext(false, Guid.Empty)))
         {
+            // Don't assume another test process already seeded roles into the shared CI database
+            // — this test project can run before, after, or fully in parallel with the ones that
+            // boot the app (and its startup role-seeding) via WebApplicationFactory.
+            await RoleSeeder.SeedAsync(seedDb, CancellationToken.None);
             var role = await seedDb.Roles.FirstAsync();
             var userA = User.Create(Guid.NewGuid(), $"{Guid.NewGuid():N}@example.test", "User A", DateTimeOffset.UtcNow);
             var userB = User.Create(Guid.NewGuid(), $"{Guid.NewGuid():N}@example.test", "User B", DateTimeOffset.UtcNow);
