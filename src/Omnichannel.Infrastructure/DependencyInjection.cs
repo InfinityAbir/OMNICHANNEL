@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Infrastructure.Ai;
 using Omnichannel.Infrastructure.Channels;
@@ -66,6 +69,18 @@ public static class DependencyInjection
         services.AddSingleton<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<ITenantSecretStore, DataProtectionTenantSecretStore>();
+
+        // Data Protection's key ring persisted in Postgres, not the container's local filesystem
+        // — required on any platform with an ephemeral filesystem (Render included), since the
+        // default file-system persistence would silently mint a fresh key ring on every redeploy
+        // and permanently strand every previously-encrypted TenantSecret/ChannelCredential value.
+        // ApplicationName is pinned to a fixed literal (never derived from anything that could
+        // change between deploys) — Data Protection scopes keys to it, so an accidental change
+        // would have the exact same effect as losing the key ring outright.
+        services.AddSingleton<IConfigureOptions<KeyManagementOptions>>(sp =>
+            new ConfigureOptions<KeyManagementOptions>(options =>
+                options.XmlRepository = new EfXmlRepository(sp.GetRequiredService<IServiceScopeFactory>())));
+        services.AddDataProtection().SetApplicationName("Omnichannel");
 
         // Scoped, not Singleton — a future adapter may itself be Scoped (e.g. needs a per-request
         // DbContext), and capturing it into a Singleton registry would be a captive dependency.

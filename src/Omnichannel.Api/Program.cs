@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -77,6 +78,20 @@ builder.Services.AddProblemDetails(options =>
 });
 builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
 
+// ---- Forwarded headers: required behind Render's (or any) TLS-terminating reverse proxy ----
+// Without this, Kestrel sees every request as plain HTTP (the proxy talks HTTP to the
+// container), so UseHttpsRedirection/UseHsts below would redirect-loop real HTTPS traffic
+// forever. KnownNetworks/KnownProxies are cleared because the proxy's IP isn't a fixed,
+// allowlist-able address on a platform like Render — the header is trusted by topology (the
+// container only ever receives traffic from the platform's own edge), the same trust model
+// Render's own docs assume for ASP.NET Core apps.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // ---- CORS: deny by default, explicit allowlist from configuration ----
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
@@ -99,8 +114,15 @@ builder.Services.AddCors(options =>
 
 // ---- Authentication: JWT bearer, signed with the key issued at login/refresh ----
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtSigningKey = jwtSection["SigningKey"]
-    ?? throw new InvalidOperationException("Missing required configuration: Jwt:SigningKey");
+var jwtSigningKey = jwtSection["SigningKey"];
+if (string.IsNullOrWhiteSpace(jwtSigningKey))
+{
+    // An empty (not just missing) value previously passed this check (empty string isn't null),
+    // then failed confusingly later — SymmetricSecurityKey rejects a zero-length key only when
+    // JwtBearerOptions is first lazily resolved, i.e. on the first authenticated request, as an
+    // unhandled 500 instead of a clear startup failure. Fail fast here instead.
+    throw new InvalidOperationException("Missing required configuration: Jwt:SigningKey");
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -292,6 +314,7 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 
 if (!app.Environment.IsDevelopment())
@@ -336,13 +359,26 @@ app.MapEmailSettingsEndpoints();
 app.MapHub<InboxHub>("/hubs/inbox");
 app.MapHub<WidgetHub>("/hubs/widget").RequireCors("WidgetEmbed");
 
-// Auto-migrate only in Development/Testing — production schema changes go through a
-// deliberate, reviewed deploy step (AGENTS.md: migrations must be reviewable and tenant-safe),
-// not applied implicitly on every process start. Role seeding is idempotent and always safe.
+// Serves the built Angular SPA (copied into wwwroot at Docker build time — see repo-root
+// Dockerfile) for any GET that doesn't match an API/hub route above, so a single Render web
+// service can host both the API and the frontend on one origin (no cross-origin CORS/SignalR
+// config needed between them). Absent in local dev (wwwroot has no Angular build; `ng serve`'s
+// own proxy handles that instead), so this silently does nothing outside a real deploy.
+app.MapFallbackToFile("index.html");
+
+// Auto-migrate in Development/Testing always; in any other environment only when explicitly
+// opted in via RunMigrationsOnStartup (e.g. set true for a Render deploy — a hosted platform
+// has no interactive terminal to run `dotnet ef database update` from, unlike a reviewed local/
+// CI step). Production schema changes are otherwise a deliberate, reviewed step (AGENTS.md:
+// migrations must be reviewable and tenant-safe), not implicit on every process start — the
+// opt-in keeps that intent instead of blanket-enabling it for every non-dev environment.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Testing")
+    var autoMigrate = app.Environment.IsDevelopment()
+        || app.Environment.EnvironmentName == "Testing"
+        || builder.Configuration.GetValue<bool>("RunMigrationsOnStartup");
+    if (autoMigrate)
     {
         await db.Database.MigrateAsync();
     }

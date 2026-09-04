@@ -3,6 +3,25 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Deployment prep (Render) — 2026-09-04
+
+Not a phase — Render deployment prep, done directly for the user while they were live on the
+Render dashboard. Full reasoning in `docs/decisions/ADR-0028-render-deployment.md`. One real
+finding, critical had it shipped unnoticed: ASP.NET Core's Data Protection API defaults to
+filesystem key storage, which is ephemeral on Render (and most container platforms) — every
+redeploy would have silently minted a fresh key ring and permanently stranded every
+`TenantSecret`/`ChannelCredential` encrypted under the old one, with no error at the point of
+loss. Fixed by persisting the key ring in Postgres (`EfXmlRepository`) and verified live: a key
+encrypted by one container was destroyed and re-created as a fresh container instance from the
+same image (not `docker restart` — a real redeploy simulation), and the new instance correctly
+decrypted the old container's secret. Also added `ForwardedHeaders` middleware (required behind
+Render's TLS-terminating proxy — without it, `UseHttpsRedirection`/`UseHsts` would redirect-loop
+real traffic) and tightened the `Jwt:SigningKey` startup check to reject an empty string, not
+just a missing key (found while live-testing the Docker image — an empty value previously passed
+the null-check, then failed confusingly as an unhandled 500 on the first authenticated request
+instead of a clear startup failure). 274/274 backend tests still green; nothing here touches
+request-handling logic the test suite exercises.
+
 ## Phase 16 (Dynamic Tenant Configuration — AI Provider + SMTP)
 
 Not a PRD-numbered phase — a post-launch feature the user asked for directly: per-tenant AI

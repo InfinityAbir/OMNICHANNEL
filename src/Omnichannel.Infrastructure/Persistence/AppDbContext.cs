@@ -18,6 +18,7 @@ using Omnichannel.Domain.Security;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
 using Omnichannel.Infrastructure.Identity;
+using Omnichannel.Infrastructure.Security;
 
 namespace Omnichannel.Infrastructure.Persistence;
 
@@ -84,6 +85,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<TenantAiProviderSettings> TenantAiProviderSettings => Set<TenantAiProviderSettings>();
 
     public DbSet<TenantEmailSettings> TenantEmailSettings => Set<TenantEmailSettings>();
+
+    /// <summary>Not part of <see cref="IAppDbContext"/> — a pure infrastructure concern (Data
+    /// Protection's own key ring, see <see cref="DataProtectionKeyRecord"/>), never touched by
+    /// the Application layer.</summary>
+    public DbSet<DataProtectionKeyRecord> DataProtectionKeys => Set<DataProtectionKeyRecord>();
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
 

@@ -1,0 +1,60 @@
+# Render Blueprint — one Postgres database + one Docker web service that serves both the API
+# and the built Angular SPA (see repo-root Dockerfile and Program.cs's MapFallbackToFile). Same
+# origin for frontend and backend, so no CORS config is needed between them; Cors:AllowedOrigins
+# stays empty (its existing default) unless a future separate client needs cross-origin access.
+#
+# To deploy: in the Render dashboard, "New" -> "Blueprint", point it at this repo. Render reads
+# this file and provisions both resources. After the first deploy, fill in the "sync: false"
+# secrets below in the web service's Environment tab (Render prompts for these during Blueprint
+# setup) — see docs/deployment.md for what each one is and where to get it.
+
+databases:
+  - name: omnichannel-db
+    plan: free
+    databaseName: omnichannel
+    user: omnichannel
+
+services:
+  - type: web
+    name: omnichannel
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health/live
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: omnichannel-db
+          property: connectionString
+      # Applies pending EF Core migrations on every startup — the pragmatic default for a
+      # single-instance deploy with no separate migration-tooling step available; MigrateAsync
+      # only applies migrations not already recorded as run, so this is safe to leave on. Set to
+      # "false" in the dashboard if a deliberate, separate migration step is preferred later.
+      - key: RunMigrationsOnStartup
+        value: "true"
+      # Render generates a strong random value for this the first time the Blueprint runs.
+      - key: Jwt__SigningKey
+        generateValue: true
+      # Platform-default AI provider (Groq) — a tenant who never configures their own AI provider
+      # (ADR-0027) falls back to this. Get a key at https://console.groq.com/keys. Leave unset and
+      # every tenant simply must configure their own provider before Suggest/Auto-Reply works.
+      - key: Ai__Groq__ApiKey
+        sync: false
+      # Platform-default SMTP — a tenant who never configures their own SMTP (ADR-0027) falls
+      # back to this for registration/password-reset/escalation emails. Leave any of these unset
+      # and the app just skips sending (logged, not an error) until a tenant configures their own.
+      - key: Smtp__Host
+        sync: false
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__FromAddress
+        sync: false
+      - key: Smtp__FromName
+        value: Omnichannel
