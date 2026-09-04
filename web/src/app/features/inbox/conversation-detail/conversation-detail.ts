@@ -95,7 +95,7 @@ export class ConversationDetailComponent {
   constructor() {
     this.automation.listSavedReplies().subscribe({
       next: (replies) => this.savedReplies.set(replies),
-      error: () => {}, // a saved-replies load failure shouldn't block the conversation view
+      error: () => undefined, // a saved-replies load failure shouldn't block the conversation view
     });
 
     effect(() => {

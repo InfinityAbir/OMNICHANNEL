@@ -78,9 +78,9 @@
 
       @if (widgetSettings(); as widget) {
         <div class="field" style="margin-top: 1.25rem;">
-          <label>Embed snippet</label>
+          <label for="embed-snippet">Embed snippet</label>
           <span class="hint">Paste this on any allowed origin to add the chat widget.</span>
-          <textarea rows="3" readonly [ngModel]="widget.embedSnippet"></textarea>
+          <textarea id="embed-snippet" rows="3" readonly [ngModel]="widget.embedSnippet"></textarea>
         </div>
       }
     </div>

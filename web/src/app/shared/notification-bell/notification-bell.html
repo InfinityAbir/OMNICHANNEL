@@ -10,7 +10,7 @@
   </button>
 
   @if (open()) {
-    <div class="backdrop" (click)="close()"></div>
+    <div class="backdrop" tabindex="-1" (click)="close()" (keydown.escape)="close()"></div>
     <div class="dropdown">
       <div class="dropdown-header">Notifications</div>
       @if (loading()) {

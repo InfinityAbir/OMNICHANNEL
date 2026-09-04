@@ -58,7 +58,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   private refreshCount(): void {
     this.notifications.unreadCount().subscribe({
       next: (result) => this.unreadCount.set(result.count),
-      error: () => {}, // background polling — a transient failure here shouldn't interrupt the user
+      error: () => undefined, // background polling — a transient failure here shouldn't interrupt the user
     });
   }
 
