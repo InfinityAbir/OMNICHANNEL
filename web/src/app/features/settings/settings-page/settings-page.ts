@@ -21,6 +21,7 @@ const NAV_ITEMS: SettingsNavItem[] = [
   { path: 'saved-replies', label: 'Saved Replies', anyPermission: ['conversations.read', 'conversations.reply'] },
   { path: 'email', label: 'Email (SMTP)', anyPermission: ['tenant.read', 'tenant.update'] },
   { path: 'analytics', label: 'Analytics', anyPermission: ['analytics.read'] },
+  { path: 'account', label: 'Account', anyPermission: ['tenant.read'] },
 ];
 
 @Component({

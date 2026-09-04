@@ -8,6 +8,11 @@ public static class PermissionKeys
 {
     public const string TenantRead = "tenant.read";
     public const string TenantUpdate = "tenant.update";
+
+    /// <summary>Owner-only (ADR-0030) — the first genuinely owner-exclusive action in the
+    /// catalog, deliberately withheld from Admin: scheduling/cancelling the whole business
+    /// account's deletion is irreversible-by-anyone-else, unlike every other tenant.update action.</summary>
+    public const string TenantDelete = "tenant.delete";
     public const string UsersRead = "users.read";
     public const string UsersManage = "users.manage";
     public const string ConversationsRead = "conversations.read";
@@ -25,7 +30,7 @@ public static class PermissionKeys
 
     public static readonly IReadOnlyList<string> All =
     [
-        TenantRead, TenantUpdate,
+        TenantRead, TenantUpdate, TenantDelete,
         UsersRead, UsersManage,
         ConversationsRead, ConversationsReply, ConversationsAssign, ConversationsClose,
         ChannelsRead, ChannelsManage,

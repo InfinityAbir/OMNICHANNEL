@@ -380,6 +380,7 @@ app.MapAutomationEndpoints();
 app.MapNotificationEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapEmailSettingsEndpoints();
+app.MapTenantDeletionEndpoints();
 
 app.MapHub<InboxHub>("/hubs/inbox");
 app.MapHub<WidgetHub>("/hubs/widget").RequireCors("WidgetEmbed");

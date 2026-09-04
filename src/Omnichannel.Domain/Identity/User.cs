@@ -50,4 +50,20 @@ public sealed class User
         DisplayName = displayName.Trim();
         UpdatedAt = now;
     }
+
+    /// <summary>
+    /// Self-service account deletion (ADR-0030) scrubs the two PII fields this row carries —
+    /// never a hard delete of the row itself, since other tables (audit logs, internal notes,
+    /// conversation assignment, notifications) reference this Id and must keep resolving to
+    /// *something* for historical/audit purposes. The credential record (email, password hash)
+    /// is deleted separately, in Infrastructure's Identity store — this only scrubs the
+    /// business-facing profile. Email becomes a per-user-unique placeholder (the column has a
+    /// unique index) so a future signup can reuse the real address.
+    /// </summary>
+    public void Anonymize(DateTimeOffset now)
+    {
+        Email = $"deleted-{Id:N}@deleted.invalid";
+        DisplayName = "Deleted user";
+        UpdatedAt = now;
+    }
 }

@@ -9,6 +9,7 @@ using Omnichannel.Application.Contacts;
 using Omnichannel.Application.Conversations;
 using Omnichannel.Application.Knowledge;
 using Omnichannel.Application.Notifications;
+using Omnichannel.Application.Tenancy;
 using Omnichannel.Application.Widget;
 
 namespace Omnichannel.Application;
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<AnalyticsService>();
         services.AddScoped<AiProviderSettingsService>();
         services.AddScoped<EmailSettingsService>();
+        services.AddScoped<AccountDeletionService>();
         return services;
     }
 }

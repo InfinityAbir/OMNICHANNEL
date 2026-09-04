@@ -41,6 +41,13 @@ public sealed partial class SmtpEmailSender(
         return SendAsync(tenantId, toEmail, toDisplayName, subject, html, text, cancellationToken);
     }
 
+    public Task SendTenantDeletionScheduledAsync(
+        Guid tenantId, string toEmail, string toDisplayName, string tenantName, DateTimeOffset scheduledDeletionAt, CancellationToken cancellationToken)
+    {
+        var (subject, html, text) = EmailTemplates.TenantDeletionScheduled(toDisplayName, tenantName, scheduledDeletionAt);
+        return SendAsync(tenantId, toEmail, toDisplayName, subject, html, text, cancellationToken);
+    }
+
     public async Task<EmailTestResult> SendTestEmailAsync(Guid tenantId, string toEmail, string toDisplayName, CancellationToken cancellationToken)
     {
         var config = await ResolveConfigAsync(tenantId, cancellationToken);

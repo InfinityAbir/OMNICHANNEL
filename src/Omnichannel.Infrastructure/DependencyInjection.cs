@@ -14,6 +14,7 @@ using Omnichannel.Infrastructure.Knowledge;
 using Omnichannel.Infrastructure.Persistence;
 using Omnichannel.Infrastructure.Realtime;
 using Omnichannel.Infrastructure.Security;
+using Omnichannel.Infrastructure.Tenancy;
 using Pgvector.EntityFrameworkCore;
 using Omnichannel.Infrastructure.Widget;
 
@@ -83,6 +84,13 @@ public static class DependencyInjection
         services.AddSingleton<JwtSigningKeyCache>();
         services.AddSingleton<JwtSigningKeyRefreshService>();
         services.AddHostedService(sp => sp.GetRequiredService<JwtSigningKeyRefreshService>());
+
+        // Data retention / account deletion (ADR-0030): permanently purges a tenant's data once
+        // its deletion grace period elapses. Same registration shape as the refresh service above
+        // — resolvable directly (not just as IHostedService) so tests can trigger a purge run
+        // deterministically instead of waiting on the hourly timer.
+        services.AddSingleton<TenantDataPurgeService>();
+        services.AddHostedService(sp => sp.GetRequiredService<TenantDataPurgeService>());
 
         // Data Protection's key ring persisted in Postgres, not the container's local filesystem
         // — required on any platform with an ephemeral filesystem (Render included), since the

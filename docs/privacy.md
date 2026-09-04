@@ -41,36 +41,38 @@ PRD §74 (Phase 15): privacy review, data retention review.
   token exposes the agent's own session, not other tenants' data (every subsequent request is
   still tenant-scoped server-side by the token's own `tenant_id` claim).
 
-## Data retention — current state
+## Data retention and account deletion — resolved 2026-09-05
 
-**No automated retention/deletion policy exists yet.** Every table is append-only or
-soft-mutated (status changes, not deletes) except where an explicit domain method removes a row
-(e.g. removing a tag from a conversation, deleting a channel credential). Concretely, as of Phase
-15:
+**Self-service deletion now exists, with a 14-day grace period, for both a business account and
+an individual user's own account.** Full design in
+`docs/decisions/ADR-0030-data-retention-account-deletion.md`; summary:
 
-- Messages, conversations, contacts, audit logs: retained indefinitely, no TTL/archival job.
-- A tenant/account has no self-service "delete my data" or "delete my account" flow.
-- No secure-deletion (crypto-shredding, hard-delete-on-request) mechanism exists.
-
-This is an honest gap, not an oversight papered over: PRD's MVP scope (§4.3) doesn't call out
-data retention/deletion tooling as in-scope for the phases built so far, and building a real
-retention policy (which requires a product decision — how long is "long enough," what happens to
-audit logs referencing deleted data, whether closed conversations get archived vs. deleted)
-is a business decision this session can't make unilaterally. Recorded here so it's a visible,
-tracked gap for whoever takes this to production, not silently absent.
-
-**What a real retention policy would need, when scoped**: a configurable per-tenant retention
-window (e.g. "delete closed conversations after N months"), a background job to enforce it (this
-project has none yet — see `docs/disaster-recovery.md`'s "what's explicitly not built"), and a
-decision on whether audit-log entries referencing deleted entities are redacted or retained
-(compliance trails often need to survive the data they describe).
+- **Delete this business** (tenant Owner only, Settings → Account, or `POST`/`DELETE
+  /api/v1/tenant/deletion`): schedules the whole tenant for permanent deletion 14 days out.
+  Blocks new logins to that tenant immediately; the actual data isn't touched until the grace
+  period elapses. Cancellable any time before then.
+- **Delete my account** (any user, any time, Settings → Account, or `DELETE /api/v1/users/me`):
+  removes the user from every business they belong to, scrubs their email/display name, and
+  deletes their login credential outright (immediately unable to log in again). Blocked only if
+  they're the sole Owner of a tenant that still has other members (no one would be left able to
+  manage it) — in which case they're told to transfer ownership or delete the business account
+  first. If they're the sole Owner of a tenant with no other members at all, deleting their
+  account also schedules that now-ownerless tenant for deletion.
+- **The actual purge** (`TenantDataPurgeService`, hourly): permanently removes every row across
+  every tenant-owned table for a tenant whose grace period has elapsed — generic, by reflection
+  over every `ITenantOwned` entity type, so a future new entity is covered automatically. Audit
+  log entries and the `Tenant` row itself are deliberately kept (marked `Deleted`, not removed) —
+  a compliance trail should survive the data it describes, per this doc's own earlier
+  recommendation.
+- Verified live end-to-end in the browser, not just via the automated suite (see ADR-0030), and
+  with 16 new backend tests (296/296 total green).
 
 ## Recommendation before real production use
 
 1. A privacy policy / terms of service (product/legal, not engineering) should explicitly
    disclose that customer message content is sent to a third-party AI provider (Groq) when a
    tenant enables Suggest mode or auto-reply.
-2. A data retention policy should be decided and then built as its own scoped phase — this
-   review's job was to surface the gap accurately, not to guess a number and implement it.
-3. A tenant offboarding/account-deletion flow should exist before onboarding real customer data
-   at scale.
+2. ~~A data retention policy should be decided and then built as its own scoped phase~~ — done,
+   see above.
+3. ~~A tenant offboarding/account-deletion flow should exist before onboarding real customer data
+   at scale~~ — done, see above.

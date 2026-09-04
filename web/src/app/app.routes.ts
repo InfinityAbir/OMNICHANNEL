@@ -72,6 +72,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/settings/analytics-dashboard/analytics-dashboard').then((m) => m.AnalyticsDashboardComponent),
       },
+      {
+        path: 'account',
+        loadComponent: () => import('./features/settings/account-settings/account-settings').then((m) => m.AccountSettingsComponent),
+      },
     ],
   },
   { path: '**', redirectTo: 'inbox' },

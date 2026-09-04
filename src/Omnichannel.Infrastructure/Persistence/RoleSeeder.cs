@@ -5,9 +5,9 @@ namespace Omnichannel.Infrastructure.Persistence;
 
 /// <summary>
 /// Idempotently seeds the 4 fixed system roles (PRD §12) with their permission sets. Owner and
-/// Admin currently share an identical permission set — the permission catalog has no
-/// owner-exclusive action yet (e.g. billing, ownership transfer); differentiate them once one
-/// exists rather than inventing a distinction now.
+/// Admin share every permission except <see cref="PermissionKeys.TenantDelete"/> (ADR-0030) —
+/// the first genuinely owner-exclusive action in the catalog (scheduling/cancelling deletion of
+/// the whole business account), deliberately withheld from Admin.
 /// </summary>
 public static class RoleSeeder
 {
@@ -38,13 +38,34 @@ public static class RoleSeeder
 
         try
         {
-            if (await db.Roles.AnyAsync(cancellationToken))
+            var seedRoles = BuildSeedRoles();
+            var existingRoles = await db.Roles.ToDictionaryAsync(r => r.SystemRole, cancellationToken);
+
+            if (existingRoles.Count == 0)
             {
+                db.Roles.AddRange(seedRoles);
+                await db.SaveChangesAsync(cancellationToken);
                 return;
             }
 
-            db.Roles.AddRange(BuildSeedRoles());
-            await db.SaveChangesAsync(cancellationToken);
+            // Roles already exist (not a fresh database) — reconcile each one's permission set to
+            // the current catalog rather than leaving it frozen at whatever it was first seeded
+            // with. Without this, a permission added to a role in code (e.g. ADR-0030's
+            // tenant.delete added to Owner) would never reach an already-seeded database, since
+            // the "insert only if empty" check above would just skip it forever.
+            var anyChanged = false;
+            foreach (var seedRole in seedRoles)
+            {
+                if (existingRoles.TryGetValue(seedRole.SystemRole, out var existing) && existing.ReconcilePermissions(seedRole.Permissions))
+                {
+                    anyChanged = true;
+                }
+            }
+
+            if (anyChanged)
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
         finally
         {
@@ -62,7 +83,7 @@ public static class RoleSeeder
     private static Role[] BuildSeedRoles() =>
     [
         Role.Create(SystemRole.Owner, "Owner", PermissionKeys.All),
-        Role.Create(SystemRole.Admin, "Admin", PermissionKeys.All),
+        Role.Create(SystemRole.Admin, "Admin", [.. PermissionKeys.All.Where(p => p != PermissionKeys.TenantDelete)]),
         Role.Create(SystemRole.Agent, "Agent",
         [
             PermissionKeys.TenantRead,

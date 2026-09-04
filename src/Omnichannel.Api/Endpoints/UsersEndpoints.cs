@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Application.Tenancy;
 using Omnichannel.Contracts.Auth;
+using Omnichannel.Contracts.Tenancy;
 using Omnichannel.Domain.Tenancy;
 
 namespace Omnichannel.Api.Endpoints;
@@ -10,6 +12,13 @@ public static class UsersEndpoints
     public static IEndpointRouteBuilder MapUsersEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/v1/users/me", GetCurrentUserAsync).RequireAuthorization();
+
+        // Data retention / account deletion (ADR-0030), the individual-user half — no special
+        // permission required beyond being authenticated, since this only ever acts on the
+        // caller's own account. The whole-business-account half lives in
+        // TenantDeletionEndpoints, which IS permission-gated (Owner-only).
+        app.MapDelete("/api/v1/users/me", DeleteCurrentUserAsync).RequireAuthorization();
+
         return app;
     }
 
@@ -34,5 +43,13 @@ public static class UsersEndpoints
         ).SingleOrDefaultAsync(cancellationToken);
 
         return result is null ? Results.Unauthorized() : Results.Ok(result);
+    }
+
+    private static async Task<IResult> DeleteCurrentUserAsync(AccountDeletionService service, CancellationToken cancellationToken)
+    {
+        var outcome = await service.DeleteMyAccountAsync(cancellationToken);
+        return outcome.Succeeded
+            ? Results.Ok(new DeleteMyAccountResponse(true, null))
+            : Results.Problem(title: "Account cannot be deleted yet.", detail: outcome.Error, statusCode: StatusCodes.Status409Conflict);
     }
 }

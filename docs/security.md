@@ -3,6 +3,39 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Data retention / account deletion — 2026-09-05
+
+Closes the last item tracked since Phase 15: no self-service "delete my data"/"delete my account"
+flow. Full design in `docs/decisions/ADR-0030-data-retention-account-deletion.md`;
+`docs/privacy.md` has the retention-policy summary. Security-relevant points:
+
+- **A 14-day grace period for both flows** (business account and individual user), never instant
+  — the same "schedule a future action, don't destroy on the first click" shape ADR-0029 used for
+  JWT key retirement.
+- **Requesting tenant deletion enforces `TenantStatus` at login/refresh** — a side effect that,
+  for the first time, actually enforces the pre-existing `Suspended` status too (defined since
+  early phases but never checked anywhere in the codebase until now — a real latent gap this fix
+  closes incidentally).
+- **The purge job is permission-boundary-safe by construction**: it runs from a `BackgroundService`
+  with no tenant context at all, using `IgnoreQueryFilters()` + an explicit tenant id on every
+  delete — the same documented exception pattern used everywhere else in this codebase that must
+  operate outside an authenticated request (webhooks, auto-reply, JWT key rotation).
+- **A user's credential record is genuinely deleted** (immediately unable to log in again); their
+  business-facing profile is anonymized, not deleted, since other tables reference its id.
+  Verified live: a deleted account's exact former credentials were rejected with "Incorrect email
+  or password" on the very next login attempt in the same browser session.
+- **A real second bug found and fixed while building this, not shipped**: `RoleSeeder` only ever
+  inserted roles into an empty table — adding the new `tenant.delete` permission to Owner's set in
+  code did nothing to an already-seeded database (the shared dev/test one, and would have
+  identically affected Render's already-seeded production one on this same deploy). Caught by a
+  genuine test failure (a registered Owner getting 403 on their own tenant-deletion request), not
+  by inspection. Fixed by making `RoleSeeder` reconcile every role's permission set to the current
+  code-defined catalog on every startup, not just insert missing roles — so a future permission
+  change reaches an already-running deployment without a manual database fix.
+- 296/296 backend tests green (16 new), plus full live browser verification of both deletion
+  flows against the real backend (schedule → cancel → self-delete-with-cascade → rejected
+  relogin).
+
 ## JWT signing key rotation — 2026-09-04
 
 Closes the last item tracked since Phase 15: "no JWT signing-key rotation overlap mechanism —

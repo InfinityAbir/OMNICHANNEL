@@ -34,4 +34,22 @@ public sealed class Role
             Name = name,
             Permissions = permissions.Distinct(StringComparer.Ordinal).ToList(),
         };
+
+    /// <summary>Reconciles this already-seeded role's permission set to the current catalog
+    /// definition — <c>RoleSeeder</c> calls this on every startup, not just when a role is first
+    /// created, so a permission added to (or removed from) a role in code (e.g. ADR-0030's
+    /// tenant.delete) actually reaches an already-seeded database on redeploy, not just a fresh
+    /// one.</summary>
+    public bool ReconcilePermissions(IEnumerable<string> currentPermissions)
+    {
+        var updated = currentPermissions.Distinct(StringComparer.Ordinal).OrderBy(p => p, StringComparer.Ordinal).ToList();
+        var existing = Permissions.OrderBy(p => p, StringComparer.Ordinal).ToList();
+        if (updated.SequenceEqual(existing, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        Permissions = updated;
+        return true;
+    }
 }

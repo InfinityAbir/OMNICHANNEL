@@ -87,4 +87,16 @@ public sealed class IdentityService(UserManager<ApplicationUser> userManager) : 
         var result = await userManager.ResetPasswordAsync(user, token, newPassword);
         return result.Succeeded;
     }
+
+    public async Task<bool> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return false;
+        }
+
+        var result = await userManager.DeleteAsync(user);
+        return result.Succeeded;
+    }
 }

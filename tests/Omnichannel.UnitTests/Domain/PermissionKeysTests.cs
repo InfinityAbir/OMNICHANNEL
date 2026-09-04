@@ -13,7 +13,9 @@ public class PermissionKeysTests
     [Fact]
     public void All_MatchesPrdCatalogSize()
     {
-        // PRD §12 lists 16 permission keys — a change here should be deliberate, not accidental.
-        Assert.Equal(16, PermissionKeys.All.Count);
+        // PRD §12 lists 16 permission keys; tenant.delete was added post-launch (ADR-0030,
+        // account deletion) as the first genuinely owner-exclusive permission — a further change
+        // here should still be deliberate, not accidental.
+        Assert.Equal(17, PermissionKeys.All.Count);
     }
 }

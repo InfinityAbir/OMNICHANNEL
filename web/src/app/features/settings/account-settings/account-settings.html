@@ -1,0 +1,73 @@
+<div class="settings-screen">
+  <h2>Account</h2>
+  <p class="subtitle">Manage your own account, and — if you're the owner — this business's account.</p>
+
+  <div class="card" style="border-color: var(--danger, #dc2626);">
+    <h3 style="margin-top: 0;">Delete my account</h3>
+    <p class="hint">
+      Permanently deletes your login and personal profile. You'll be removed from every business
+      you're a member of. This cannot be undone.
+    </p>
+
+    @if (!confirmingAccountDelete()) {
+      <button type="button" class="btn-danger" (click)="confirmingAccountDelete.set(true)">Delete my account</button>
+    } @else {
+      <div class="row-actions">
+        <button type="button" class="btn-danger" [disabled]="deletingAccount()" (click)="deleteMyAccount()">
+          {{ deletingAccount() ? 'Deleting…' : 'Yes, permanently delete my account' }}
+        </button>
+        <button type="button" class="btn-secondary" [disabled]="deletingAccount()" (click)="confirmingAccountDelete.set(false)">
+          Cancel
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="40%" />
+      <br />
+      <app-skeleton height="2.2rem" />
+    </div>
+  } @else if (canManageTenantDeletion()) {
+    <div class="card" style="border-color: var(--danger, #dc2626); margin-top: 1.5rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+        <h3 style="margin: 0;">Delete this business</h3>
+        @if (tenantStatus() === 'PendingDeletion') {
+          <span class="badge badge-on" style="background: var(--danger, #dc2626);">Scheduled for deletion</span>
+        } @else {
+          <span class="badge">Active</span>
+        }
+      </div>
+
+      @if (tenantStatus() === 'PendingDeletion') {
+        <p class="hint">
+          Every conversation, contact, and setting for this business will be permanently deleted on
+          <strong>{{ scheduledDeletionAt() | date: 'medium' }}</strong>. This cannot be undone once it happens.
+        </p>
+        <button type="button" class="btn-secondary" [disabled]="workingOnTenant()" (click)="cancelTenantDeletion()">
+          {{ workingOnTenant() ? 'Cancelling…' : 'Cancel deletion' }}
+        </button>
+      } @else {
+        <p class="hint">
+          Permanently deletes every conversation, contact, and setting for this business — for
+          everyone on the team. There's a 14-day grace period before anything is actually removed,
+          and you can cancel any time before then.
+        </p>
+
+        @if (!confirmingTenantDelete()) {
+          <button type="button" class="btn-danger" (click)="confirmingTenantDelete.set(true)">Delete this business</button>
+        } @else {
+          <div class="row-actions">
+            <button type="button" class="btn-danger" [disabled]="workingOnTenant()" (click)="requestTenantDeletion()">
+              {{ workingOnTenant() ? 'Scheduling…' : 'Yes, schedule deletion' }}
+            </button>
+            <button type="button" class="btn-secondary" [disabled]="workingOnTenant()" (click)="confirmingTenantDelete.set(false)">
+              Cancel
+            </button>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

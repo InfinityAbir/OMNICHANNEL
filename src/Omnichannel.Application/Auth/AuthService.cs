@@ -209,7 +209,7 @@ public sealed class AuthService(
     private sealed record ActiveTenantContext(Guid UserId, string Email, Guid TenantId, List<string> Permissions);
 
     /// <summary>
-    /// One joined query for user + active membership + role instead of three sequential
+    /// One joined query for user + active membership + role + tenant instead of four sequential
     /// round-trips — used by both Login and Refresh.
     ///
     /// Deliberately bypasses the tenant global query filter (ADR-0005) via IgnoreQueryFilters:
@@ -220,6 +220,14 @@ public sealed class AuthService(
     /// that already passed Identity's check, or a refresh token already found by its hash) —
     /// never from client-supplied input — so this cannot be used to enumerate another user's
     /// memberships.
+    ///
+    /// Filters to tenants still <see cref="TenantStatus.Active"/> (ADR-0030) — a Suspended,
+    /// PendingDeletion, or Deleted tenant issues no new access/refresh tokens, though a token
+    /// already issued keeps working until it naturally expires (same "no implicit mass logout"
+    /// principle as JWT key rotation's overlap window, ADR-0029). A user who belongs to several
+    /// tenants simply falls through to their next-oldest *active* membership instead of being
+    /// blocked outright — only a user with no active tenant left at all gets the existing
+    /// InvalidCredentials outcome.
     /// </summary>
     private Task<ActiveTenantContext?> GetActiveTenantContextAsync(
         System.Linq.Expressions.Expression<Func<User, bool>> userPredicate, CancellationToken cancellationToken)
@@ -228,6 +236,7 @@ public sealed class AuthService(
             join membership in db.Memberships.IgnoreQueryFilters().Where(m => m.Status == MembershipStatus.Active)
                 on user.Id equals membership.UserId
             join role in db.Roles on membership.RoleId equals role.Id
+            join tenant in db.Tenants.Where(t => t.Status == TenantStatus.Active) on membership.TenantId equals tenant.Id
             orderby membership.CreatedAt
             select new ActiveTenantContext(user.Id, user.Email, membership.TenantId, role.Permissions)
         ).FirstOrDefaultAsync(cancellationToken);

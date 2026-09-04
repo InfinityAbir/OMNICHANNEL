@@ -116,6 +116,38 @@ internal static class EmailTemplates
         return (subject, html, plainText);
     }
 
+    public static (string Subject, string Html, string PlainText) TenantDeletionScheduled(
+        string displayName, string tenantName, DateTimeOffset scheduledDeletionAt)
+    {
+        var subject = $"Your business account is scheduled for deletion — {tenantName}";
+        var name = WebUtility.HtmlEncode(displayName);
+        var tenant = WebUtility.HtmlEncode(tenantName);
+        var when = WebUtility.HtmlEncode(scheduledDeletionAt.ToString("MMMM d, yyyy 'at' HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture));
+
+        var html = SimpleLayout(
+            preheader: $"{tenantName} will be permanently deleted on {when}.",
+            heading: "Account deletion scheduled",
+            bodyHtml: $"""
+                <p style="margin:0 0 16px;">Hi {name},</p>
+                <p style="margin:0 0 16px;">
+                    <strong>{tenant}</strong> has been scheduled for permanent deletion on
+                    <strong>{when}</strong>. All conversations, contacts, and settings will be
+                    permanently removed at that time — this cannot be undone once it happens.
+                </p>
+                <p style="margin:0;">
+                    Changed your mind? Go to Settings and cancel the deletion any time before then.
+                </p>
+                """);
+
+        var plainText =
+            $"Hi {displayName},\n\n" +
+            $"{tenantName} has been scheduled for permanent deletion on {when}. All conversations, " +
+            "contacts, and settings will be permanently removed at that time — this cannot be undone.\n\n" +
+            "Changed your mind? Go to Settings and cancel the deletion any time before then.";
+
+        return (subject, html, plainText);
+    }
+
     /// <summary>A layout for transactional notices that don't have a specific deep-link URL to send the reader to (no established frontend-URL config reaches this call site) — same visual shell as <see cref="Layout"/> minus the CTA button.</summary>
     private static string SimpleLayout(string preheader, string heading, string bodyHtml)
         => $"""
