@@ -3,6 +3,46 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 12 controls (AI Auto-Reply)
+
+- **Unauthorized AI actions**: enabling auto-reply requires two independent, explicit opt-ins —
+  the tenant-wide `AiAutoReplySettings.Enabled` switch (gated by the `ai.configure` permission,
+  Owner/Admin only) and the individual conversation's own `ConversationAiMode` (also
+  `ai.configure`). Both default to off/Disabled; a fresh tenant can never auto-reply until a
+  business owner deliberately turns both on. Verified:
+  `AiAutoReplySecurityTests.AgentRole_CannotConfigureAutoReplySettings`.
+- **Prompt injection / hallucination**: no new prompt-construction path — auto-reply reuses
+  `GroqAiProvider`'s existing structural defenses (history as separate role-tagged messages,
+  knowledge snippets labeled untrusted) unchanged from Phase 10/11, plus a new hard behavioral
+  gate: the model's own `requiresHuman` self-assessment and a configurable confidence threshold
+  are enforced in code, not just requested in the prompt — a low-confidence or self-flagged
+  response is never auto-sent regardless of what the model claims. Verified live against the real
+  Groq API for both branches (a refund request correctly sets `requiresHuman: true` with a reason;
+  a known-FAQ question correctly sets it `false`) — see `docs/phase-reports/phase-12.md`.
+- **Data leakage**: identical tenant-scoped, notes-excluded context assembly as Suggest mode
+  (Phase 10) — no new data enters the AI's context in auto-reply mode.
+- **Infinite reply loops**: `AiAutoReplyService.EvaluateAsync` is only ever invoked from a genuine
+  inbound *customer* message — never from an agent's or the AI's own outbound send. The AI's own
+  auto-sent message is `MessageDirection.Outbound`/`MessageSenderType.Ai`, which structurally
+  cannot itself become a future inbound-customer trigger.
+- **Duplicate replies**: webhook idempotency (the existing `UNIQUE(ChannelAccountId,
+  ExternalMessageId)` constraint, PRD §17) rejects a redelivered provider event before
+  `AiAutoReplyService` is ever invoked for it — a retried webhook can't cause two auto-replies to
+  the same inbound message.
+- **Human takeover race conditions**: the AI provider call is a real network round-trip; right
+  before sending, `EvaluateAsync` re-queries the conversation's current `AiMode` and checks for any
+  agent message created since evaluation started, skipping the send (no escalation — a human is
+  already on it) if either changed while the call was in flight.
+- **Provider restrictions**: same `IAiProvider`/`GroqAiProvider` configuration as Phase 10, plus a
+  second, independent daily cap (`AiAutoReplySettings.DailyLimit`) distinct from Suggest mode's
+  own `AiUsageLimiter` cap — auto-sent messages are a materially higher-risk action than a
+  human-reviewed draft, so they get their own, separately configurable limit.
+- **Tenant isolation**: `AiAutoReplyService` takes an explicit `tenantId` and queries everything
+  via `IgnoreQueryFilters()` + an explicit `TenantId ==` predicate — the same documented exception
+  to the automatic EF tenant filter as `WebhookIngestionService` (ADR-0005), required because this
+  service is invoked from an unauthenticated webhook context as well as authenticated ones.
+  Verified: `AiAutoReplySecurityTests.AutoReplySettings_TenantACannotSeeOrAffectTenantBsSettings`.
+
 ## Phase 11 controls (Knowledge Base)
 
 - **Tenant isolation in retrieval**: the similarity-search query is raw SQL (EF's LINQ vector

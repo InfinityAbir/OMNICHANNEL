@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Identity;
@@ -57,12 +58,17 @@ public sealed class AuthService(
         var websiteChatChannel = ChannelAccount.Create(tenant.Id, ChannelType.WebsiteChat, "Website Chat", now);
         var widgetSettings = WidgetChannelSettings.Create(tenant.Id, websiteChatChannel.Id, [], now);
 
+        // AI auto-reply (Phase 12) starts disabled and unconfigured — the tenant must explicitly
+        // opt in and set up business hours before it can ever fire (PRD §71 conservative default).
+        var autoReplySettings = AiAutoReplySettings.CreateDefault(tenant.Id, now);
+
         db.UserProfiles.Add(domainUser);
         db.Tenants.Add(tenant);
         db.Memberships.Add(membership);
         db.ChannelAccounts.Add(manualChannel);
         db.ChannelAccounts.Add(websiteChatChannel);
         db.WidgetSettings.Add(widgetSettings);
+        db.AiAutoReplySettings.Add(autoReplySettings);
         await db.SaveChangesAsync(cancellationToken);
 
         var confirmationToken = await identity.GenerateEmailConfirmationTokenAsync(domainUser.Id, cancellationToken);

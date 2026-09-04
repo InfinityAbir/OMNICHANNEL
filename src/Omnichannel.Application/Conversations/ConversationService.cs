@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Application.Ai;
 using Omnichannel.Application.Audit;
 using Omnichannel.Application.Channels;
 using Omnichannel.Application.Common;
@@ -14,7 +15,8 @@ public sealed class ConversationService(
     ITenantContext tenantContext,
     TimeProvider timeProvider,
     IRealtimeNotifier realtime,
-    ChannelSendService channelSend)
+    ChannelSendService channelSend,
+    AiAutoReplyService autoReply)
 {
     private const int MaxPageSize = 100;
 
@@ -169,6 +171,17 @@ public sealed class ConversationService(
                 "High Priority Conversation",
                 $"New message in high-priority conversation: {text[..Math.Min(100, text.Length)]}",
                 cancellationToken);
+        }
+
+        // AI auto-reply (Phase 12): only ever considered for an actual inbound customer message
+        // (e.g. an agent logging what a customer said over the phone on the Manual channel) —
+        // never for an agent's own outbound reply, which would be an infinite-loop risk (PRD §71
+        // security focus: "infinite reply loops"). AiAutoReplyService itself re-checks the
+        // conversation's mode and the tenant's settings, so this call is cheap/no-op whenever
+        // auto-reply isn't actually configured.
+        if (direction == MessageDirection.Inbound && senderType == MessageSenderType.Customer)
+        {
+            await autoReply.EvaluateAsync(tenantContext.TenantId, conversation.Id, cancellationToken);
         }
 
         return message;
@@ -347,6 +360,34 @@ public sealed class ConversationService(
                 $"Conversation priority changed to {priority}",
                 cancellationToken);
         }
+
+        return true;
+    }
+
+    public async Task<bool> SetAiModeAsync(Guid conversationId, ConversationAiMode aiMode, CancellationToken cancellationToken)
+    {
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+        if (conversation is null)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        conversation.SetAiMode(aiMode, now);
+        audit.Record(tenantContext.TenantId, tenantContext.UserId, "conversation.ai_mode_changed", nameof(Conversation), conversationId,
+            new { aiMode = aiMode.ToString() });
+        await db.SaveChangesAsync(cancellationToken);
+
+        await realtime.NotifyConversationUpdateAsync(
+            tenantContext.TenantId,
+            conversation.Id,
+            null, // status
+            null, // priority
+            conversation.AiMode,
+            null, // lastMessageAt
+            null, // lastMessagePreview
+            conversation.AssignedUserId,
+            cancellationToken);
 
         return true;
     }

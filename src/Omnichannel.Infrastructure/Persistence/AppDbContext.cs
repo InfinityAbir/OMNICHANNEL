@@ -61,6 +61,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     public DbSet<AiSuggestion> AiSuggestions => Set<AiSuggestion>();
 
+    public DbSet<AiAutoReplySettings> AiAutoReplySettings => Set<AiAutoReplySettings>();
+
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
 
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();

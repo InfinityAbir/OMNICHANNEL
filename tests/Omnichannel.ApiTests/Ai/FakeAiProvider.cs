@@ -11,6 +11,10 @@ public sealed class FakeAiProvider : IAiProvider
 
     public double ConfidenceToReturn { get; set; } = 0.85;
 
+    public bool RequiresHumanToReturn { get; set; }
+
+    public string? EscalationReasonToReturn { get; set; }
+
     public bool ThrowOnNextCall { get; set; }
 
     public int CallCount { get; private set; }
@@ -26,6 +30,7 @@ public sealed class FakeAiProvider : IAiProvider
             throw new AiProviderException("Simulated provider failure.");
         }
 
-        return Task.FromResult(new AiCompletionResult(SuggestionToReturn, ConfidenceToReturn, "fake-model", 10, 10));
+        return Task.FromResult(new AiCompletionResult(
+            SuggestionToReturn, ConfidenceToReturn, "fake-model", 10, 10, RequiresHumanToReturn, EscalationReasonToReturn));
     }
 }

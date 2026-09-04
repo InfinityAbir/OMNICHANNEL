@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Application.Ai;
 using Omnichannel.Application.Audit;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Contacts;
@@ -29,7 +30,8 @@ public sealed class WebhookIngestionService(
     TimeProvider timeProvider,
     AuditService audit,
     IRealtimeNotifier realtime,
-    IChannelAdapterRegistry registry)
+    IChannelAdapterRegistry registry,
+    AiAutoReplyService autoReply)
 {
     public async Task<WebhookIngestResult> VerifyAsync(ChannelType type, WebhookRequest request, CancellationToken cancellationToken)
     {
@@ -183,6 +185,11 @@ public sealed class WebhookIngestionService(
             account.TenantId, conversation.Id, conversation.Status, conversation.Priority,
             conversation.AiMode, conversation.LastMessageAt, conversation.LastMessagePreview,
             conversation.AssignedUserId, cancellationToken);
+
+        // AI auto-reply (Phase 12) — this is always a genuine inbound customer message (the
+        // provider only sends us the customer side of the conversation), so no direction/sender
+        // guard is needed here unlike ConversationService's agent-facing AddMessageAsync.
+        await autoReply.EvaluateAsync(account.TenantId, conversation.Id, cancellationToken);
     }
 
     private Guid CreateContact(Guid tenantId, string? displayName, string? visitorKey, ChannelType channelType, DateTimeOffset now)

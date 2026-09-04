@@ -23,7 +23,9 @@ public static class DependencyInjection
         services.AddScoped<WebhookIngestionService>();
         services.AddScoped<ChannelSendService>();
         services.AddScoped<AiSuggestionService>();
+        services.AddScoped<AiAutoReplyService>();
         services.AddScoped<KnowledgeService>();
+        services.AddScoped<AiAutoReplySettingsService>();
         return services;
     }
 }

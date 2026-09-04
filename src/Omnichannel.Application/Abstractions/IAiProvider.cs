@@ -22,12 +22,21 @@ public sealed record AiPromptContext(
     IReadOnlyList<AiTranscriptMessage> History,
     IReadOnlyList<AiKnowledgeSnippet>? KnowledgeSnippets = null);
 
+/// <summary>
+/// <paramref name="RequiresHuman"/> is the model's own self-assessment that this exchange needs a
+/// human regardless of confidence — refunds, complaints, anything outside what the business's
+/// knowledge covers, or anything risky/sensitive (PRD §71's example table: "Refund -> human",
+/// "High risk -> human"). Auto-reply mode (Phase 12) treats this as authoritative and never
+/// auto-sends when it's true; Suggest mode (Phase 10) ignores it today but stores it.
+/// </summary>
 public sealed record AiCompletionResult(
     string SuggestedText,
     double Confidence,
     string Model,
     int PromptTokens,
-    int CompletionTokens);
+    int CompletionTokens,
+    bool RequiresHuman = false,
+    string? EscalationReason = null);
 
 /// <summary>Thrown by an IAiProvider when the call itself fails (network, auth, malformed provider response) — distinct from a low-confidence-but-successful completion, so callers can apply the "safe fallback to human handling" rule (docs/ai.md) instead of surfacing a raw provider error.</summary>
 public sealed class AiProviderException(string message, Exception? innerException = null) : Exception(message, innerException);

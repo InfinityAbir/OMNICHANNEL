@@ -51,6 +51,8 @@ public interface IAppDbContext
 
     DbSet<AiSuggestion> AiSuggestions { get; }
 
+    DbSet<AiAutoReplySettings> AiAutoReplySettings { get; }
+
     DbSet<KnowledgeDocument> KnowledgeDocuments { get; }
 
     DbSet<KnowledgeChunk> KnowledgeChunks { get; }

@@ -51,8 +51,18 @@ public sealed class GroqAiProvider(HttpClient httpClient, IOptions<AiOptions> op
           English, reply in English. Match their language and script exactly, regardless of what
           earlier messages in the conversation used — do not translate or ask which language to
           use.
+        - Separately from your suggestion, decide whether this exchange requires a human
+          regardless of how confident your draft is. Set requiresHuman to true for: refund or
+          cancellation requests, complaints, anything that sounds high-risk/sensitive (legal,
+          safety, payment disputes), anything you can't answer from the conversation and reference
+          material alone, or anything a reasonable support agent would want to personally review.
+          Set it to false only for routine questions you can answer confidently from what you were
+          given (known FAQ, known product information). When true, briefly say why in
+          escalationReason (a few words, e.g. "refund request"); otherwise leave escalationReason
+          as an empty string.
         - Respond with ONLY a JSON object of the exact shape {"suggestion": string, "confidence":
-          number between 0 and 1}. No other text, no markdown formatting, no code fences.
+          number between 0 and 1, "requiresHuman": boolean, "escalationReason": string}. No other
+          text, no markdown formatting, no code fences.
         """;
 
     public async Task<AiCompletionResult> GenerateSuggestionAsync(AiPromptContext context, CancellationToken cancellationToken)
@@ -113,11 +123,12 @@ public sealed class GroqAiProvider(HttpClient httpClient, IOptions<AiOptions> op
             throw new AiProviderException("Groq API returned no completion content.");
         }
 
-        var (suggestion, confidence) = ParseSuggestionJson(content);
+        var parsed = ParseSuggestionJson(content);
 
         return new AiCompletionResult(
-            suggestion, confidence, _options.Model,
-            completion!.Usage?.PromptTokens ?? 0, completion.Usage?.CompletionTokens ?? 0);
+            parsed.Suggestion, parsed.Confidence, _options.Model,
+            completion!.Usage?.PromptTokens ?? 0, completion.Usage?.CompletionTokens ?? 0,
+            parsed.RequiresHuman, parsed.EscalationReason);
     }
 
     // Falls back to treating the whole response as the suggestion text (low confidence) rather
@@ -134,14 +145,20 @@ public sealed class GroqAiProvider(HttpClient httpClient, IOptions<AiOptions> op
         return builder.ToString();
     }
 
-    private static (string Suggestion, double Confidence) ParseSuggestionJson(string content)
+    // A malformed/unparseable completion falls back to the raw text as the suggestion at low
+    // confidence AND requiresHuman = true — the model failed to follow the structured-output
+    // contract, so treating it as auto-reply-eligible would be the opposite of the conservative
+    // default this whole feature requires.
+    private static ParsedSuggestion ParseSuggestionJson(string content)
     {
         try
         {
             var parsed = JsonSerializer.Deserialize<SuggestionPayload>(content);
             if (parsed is not null && !string.IsNullOrWhiteSpace(parsed.Suggestion))
             {
-                return (parsed.Suggestion, Math.Clamp(parsed.Confidence, 0, 1));
+                return new ParsedSuggestion(
+                    parsed.Suggestion, Math.Clamp(parsed.Confidence, 0, 1),
+                    parsed.RequiresHuman, string.IsNullOrWhiteSpace(parsed.EscalationReason) ? null : parsed.EscalationReason);
             }
         }
         catch (JsonException)
@@ -149,8 +166,10 @@ public sealed class GroqAiProvider(HttpClient httpClient, IOptions<AiOptions> op
             // Fall through to the raw-text fallback below.
         }
 
-        return (content.Trim(), 0.3);
+        return new ParsedSuggestion(content.Trim(), 0.3, true, "unstructured AI response");
     }
+
+    private sealed record ParsedSuggestion(string Suggestion, double Confidence, bool RequiresHuman, string? EscalationReason);
 
     private sealed record ChatMessage([property: JsonPropertyName("role")] string Role, [property: JsonPropertyName("content")] string Content);
 
@@ -176,5 +195,7 @@ public sealed class GroqAiProvider(HttpClient httpClient, IOptions<AiOptions> op
 
     private sealed record SuggestionPayload(
         [property: JsonPropertyName("suggestion")] string Suggestion,
-        [property: JsonPropertyName("confidence")] double Confidence);
+        [property: JsonPropertyName("confidence")] double Confidence,
+        [property: JsonPropertyName("requiresHuman")] bool RequiresHuman = false,
+        [property: JsonPropertyName("escalationReason")] string? EscalationReason = null);
 }

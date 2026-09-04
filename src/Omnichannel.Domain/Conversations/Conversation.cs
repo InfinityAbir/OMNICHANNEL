@@ -81,4 +81,10 @@ public sealed class Conversation : ITenantOwned
         Priority = priority;
         UpdatedAt = now;
     }
+
+    public void SetAiMode(ConversationAiMode mode, DateTimeOffset now)
+    {
+        AiMode = mode;
+        UpdatedAt = now;
+    }
 }
