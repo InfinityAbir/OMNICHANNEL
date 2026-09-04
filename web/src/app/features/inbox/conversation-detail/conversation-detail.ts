@@ -8,6 +8,7 @@ import { TagService } from '../../../core/services/tag.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { RealtimeService } from '../../../core/services/realtime.service';
 import { AiService } from '../../../core/services/ai.service';
+import { ToastService } from '../../../core/services/toast.service';
 import {
   ConversationDetailResponse,
   ConversationPriority,
@@ -46,6 +47,7 @@ export class ConversationDetailComponent {
   private readonly auth = inject(AuthService);
   private readonly realtime = inject(RealtimeService);
   private readonly ai = inject(AiService);
+  private readonly toast = inject(ToastService);
 
   readonly id = input.required<string>();
   readonly changed = output<void>();
@@ -176,7 +178,10 @@ export class ConversationDetailComponent {
         this.suggestionError.set(null);
         this.changed.emit();
       },
-      error: () => this.sending.set(false),
+      error: (err) => {
+        this.sending.set(false);
+        this.toast.showError(err, 'Could not send your message. Please try again.');
+      },
     });
   }
 
@@ -215,44 +220,68 @@ export class ConversationDetailComponent {
         this.noteText.set('');
         this.savingNote.set(false);
       },
-      error: () => this.savingNote.set(false),
+      error: (err) => {
+        this.savingNote.set(false);
+        this.toast.showError(err, 'Could not save your note. Please try again.');
+      },
     });
   }
 
   assignToMe(): void {
     if (!this.currentUserId) return;
-    this.conversations.assign(this.id(), this.currentUserId).subscribe(() => this.refreshAfterMutation());
+    this.conversations.assign(this.id(), this.currentUserId).subscribe({
+      next: () => this.refreshAfterMutation(),
+      error: (err) => this.toast.showError(err, 'Could not assign this conversation to you.'),
+    });
   }
 
   unassign(): void {
-    this.conversations.unassign(this.id()).subscribe(() => this.refreshAfterMutation());
+    this.conversations.unassign(this.id()).subscribe({
+      next: () => this.refreshAfterMutation(),
+      error: (err) => this.toast.showError(err, 'Could not unassign this conversation.'),
+    });
   }
 
   changeStatus(status: string): void {
-    this.conversations.changeStatus(this.id(), status as ConversationStatus).subscribe(() => this.refreshAfterMutation());
+    this.conversations.changeStatus(this.id(), status as ConversationStatus).subscribe({
+      next: () => this.refreshAfterMutation(),
+      error: (err) => this.toast.showError(err, 'Could not change the conversation status.'),
+    });
   }
 
   changePriority(priority: string): void {
-    this.conversations.setPriority(this.id(), priority as ConversationPriority).subscribe(() => this.refreshAfterMutation());
+    this.conversations.setPriority(this.id(), priority as ConversationPriority).subscribe({
+      next: () => this.refreshAfterMutation(),
+      error: (err) => this.toast.showError(err, 'Could not change the conversation priority.'),
+    });
   }
 
   addExistingTag(name: string): void {
     if (!name) return;
-    this.conversations.addTag(this.id(), name).subscribe(() => this.refreshAfterMutation());
+    this.conversations.addTag(this.id(), name).subscribe({
+      next: () => this.refreshAfterMutation(),
+      error: (err) => this.toast.showError(err, 'Could not add that tag.'),
+    });
   }
 
   addNewTag(): void {
     const name = this.newTagName().trim();
     if (!name) return;
-    this.conversations.addTag(this.id(), name).subscribe(() => {
-      this.newTagName.set('');
-      this.tagsApi.list().subscribe((tags) => this.allTags.set(tags));
-      this.refreshAfterMutation();
+    this.conversations.addTag(this.id(), name).subscribe({
+      next: () => {
+        this.newTagName.set('');
+        this.tagsApi.list().subscribe((tags) => this.allTags.set(tags));
+        this.refreshAfterMutation();
+      },
+      error: (err) => this.toast.showError(err, 'Could not add that tag.'),
     });
   }
 
   removeTag(tagId: string): void {
-    this.conversations.removeTag(this.id(), tagId).subscribe(() => this.refreshAfterMutation());
+    this.conversations.removeTag(this.id(), tagId).subscribe({
+      next: () => this.refreshAfterMutation(),
+      error: (err) => this.toast.showError(err, 'Could not remove that tag.'),
+    });
   }
 
   private refreshAfterMutation(): void {

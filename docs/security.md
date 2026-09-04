@@ -3,6 +3,54 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 15 (Production Hardening)
+
+Full PRD §74/§75 review — see `docs/phase-reports/phase-15.md` for the complete account,
+`docs/disaster-recovery.md` for backup/restore/DR, `docs/privacy.md` for the privacy/retention
+review. Summary of what changed and what was verified:
+
+- **Dependency audit**: `dotnet list package --vulnerable --include-transitive` — zero
+  vulnerable packages across all 9 projects. `npm audit` (web workspace) — zero vulnerabilities.
+  (The e2e workspace's `npm audit` couldn't complete — network-restricted sandbox, not a finding.)
+- **Full-depth manual security audit** (OWASP Top 10 + business-logic + C#/Angular-specific,
+  using the security-auditor methodology) across every endpoint added in all 15 phases: every
+  route is authorization-gated except the deliberately-public ones (auth, provider webhooks,
+  widget embed session-open), each of which is protected by rate limiting and/or its own
+  signature/origin verification instead. Webhook HMAC verification (WhatsApp/Instagram/
+  Messenger) uses `CryptographicOperations.FixedTimeEquals` — constant-time, not vulnerable to
+  timing attacks. No secrets logged or echoed in any response (channel credentials return only a
+  `configured: bool`, never the value). CORS is a strict allowlist plus one narrowly-justified
+  wildcard for the public widget embed (documented in `Program.cs`, not a blanket `*`).
+- **Found and fixed**: two Phase 12/13 endpoints (`PUT /api/v1/ai/auto-reply-settings`,
+  `PUT /api/v1/tenant/business-hours`) accepted an unbounded business-hours/holidays payload —
+  the backing columns are bounded (`character varying(4000)`), so an oversized request surfaced
+  as an unhandled Postgres error (500) instead of a clean 400. Added explicit size guards
+  (≤7 days, ≤20 windows/day, ≤366 holidays) with regression tests.
+- **Rate limiting extended**: every request now passes a global per-authenticated-user (falling
+  back to per-IP) limiter (600/min) in addition to the existing tighter auth/widget/webhook
+  policies — previously, authenticated endpoints like `conversations`, `ai-suggestions`, and the
+  Phase 12-14 admin surfaces had no bound at all.
+- **Backup/restore actually executed**, not just documented: `pg_dump` the dev database → restore
+  into a fresh database → row counts on `conversations`/`messages`/`tenants`/`roles` matched
+  exactly (972/936/2519/4). See `docs/disaster-recovery.md`.
+- **Provider/AI outage handling**: already real from Phase 6-12 (Polly retry for channel sends,
+  `AiProviderException` → "ask a human" fallback everywhere) — re-verified, not re-built.
+- **Frontend**: audited `web/src` for XSS (no `innerHTML`/`bypassSecurityTrust*` usage anywhere),
+  token storage (the existing documented `localStorage` trade-off, ADR-0013, re-confirmed still
+  accurate), and error handling — found several mutation actions (assign, tag, status/priority
+  change, create-conversation) that subscribed with no error handler at all, so a failed request
+  did nothing visible rather than informing the user. Added a global toast notification system
+  (`ToastService`/`ToastHostComponent`) that extracts the backend's own ProblemDetails
+  `title`/`detail` for a human-readable message — verified live in the browser (a forced 404 on
+  "assign" now surfaces "Conversation not found." as a dismissible toast, not silence or a raw
+  error).
+- **Not applicable, confirmed not built rather than assumed**: queue failure test (no message
+  queue/broker exists — modular monolith), MFA (Identity is MFA-ready by architecture; enabling
+  it is a product decision, not a Phase 15 gap).
+- **Known, tracked gaps** (not silently absent): no automated data-retention/deletion tooling
+  (`docs/privacy.md`), no automated backup job in-repo (deferred to the hosting provider's managed
+  backup once one is chosen, `docs/disaster-recovery.md`), no JWT key-rotation overlap mechanism.
+
 ## Phase 14 controls (Analytics)
 
 - **Must never aggregate across tenants**: `AnalyticsService` runs entirely through

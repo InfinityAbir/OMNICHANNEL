@@ -222,6 +222,28 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Phase 15 hardening: every other policy below covers a specific unauthenticated surface
+    // (auth/widget/webhook), but the general authenticated API (conversations, ai, automation,
+    // analytics, knowledge, ...) had no bound at all — a compromised or scripted client could
+    // otherwise hammer the DB or, worse, the paid AI provider without limit. Partitioned per
+    // authenticated user (falling back to IP for anything unauthenticated, which the specific
+    // policies above already cover more tightly), generous enough that no legitimate dashboard
+    // usage pattern comes close to it.
+    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.IsAuthenticated == true
+                ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? context.User.FindFirst("sub")?.Value
+                    ?? "authenticated-unknown"
+                : context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 600,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
         partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         factory: _ => new FixedWindowRateLimiterOptions

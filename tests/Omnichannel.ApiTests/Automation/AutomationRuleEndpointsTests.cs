@@ -204,4 +204,39 @@ public class AutomationRuleEndpointsTests(TestWebApplicationFactory factory) : I
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task BusinessHours_TooManyHolidays_ReturnsBadRequestNotServerError()
+    {
+        // Phase 15 hardening: HolidaysJson is a bounded character varying(4000) column — before
+        // this guard, an oversized list surfaced as an unhandled Postgres data-length error (500)
+        // instead of a clean validation failure.
+        using var agent = factory.CreateClient();
+        agent.UseBearer(await TestAuth.RegisterAndGetAccessTokenAsync(agent));
+
+        var tooManyHolidays = Enumerable.Range(0, 400)
+            .Select(i => new DateOnly(2026, 1, 1).AddDays(i).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+
+        var response = await agent.PutAsJsonAsync(new Uri("/api/v1/tenant/business-hours", UriKind.Relative),
+            new UpdateTenantBusinessHoursRequest(null, tooManyHolidays));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BusinessHours_TooManyWindowsInOneDay_ReturnsBadRequest()
+    {
+        using var agent = factory.CreateClient();
+        agent.UseBearer(await TestAuth.RegisterAndGetAccessTokenAsync(agent));
+
+        var tooManyWindows = Enumerable.Range(0, 30).Select(_ => new BusinessHoursWindowRequest("09:00", "10:00")).ToList<BusinessHoursWindowRequest>();
+
+        var response = await agent.PutAsJsonAsync(new Uri("/api/v1/tenant/business-hours", UriKind.Relative),
+            new UpdateTenantBusinessHoursRequest(
+                new Dictionary<DayOfWeek, IReadOnlyList<BusinessHoursWindowRequest>> { [DayOfWeek.Monday] = tooManyWindows },
+                null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

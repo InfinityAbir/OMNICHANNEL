@@ -291,4 +291,24 @@ public class AiAutoReplyEndpointsTests(TestWebApplicationFactory factory) : ICla
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task AutoReplySettings_TooManyWindowsInOneDay_ReturnsBadRequestNotServerError()
+    {
+        // Phase 15 hardening: BusinessHoursJson is a bounded character varying(4000) column —
+        // before this guard, an oversized payload surfaced as an unhandled Postgres data-length
+        // error (500) instead of a clean validation failure.
+        var (customFactory, _) = WithFakeProvider();
+        using var factoryInstance = customFactory;
+        using var agent = factoryInstance.CreateClient();
+        agent.UseBearer(await TestAuth.RegisterAndGetAccessTokenAsync(agent));
+
+        var tooManyWindows = Enumerable.Range(0, 30).Select(_ => new BusinessHoursWindowRequest("09:00", "10:00")).ToList<BusinessHoursWindowRequest>();
+
+        var response = await agent.PutAsJsonAsync(new Uri("/api/v1/ai/auto-reply-settings", UriKind.Relative),
+            new UpdateAiAutoReplySettingsRequest(true, 0.85, 50,
+                new Dictionary<DayOfWeek, IReadOnlyList<BusinessHoursWindowRequest>> { [DayOfWeek.Monday] = tooManyWindows }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

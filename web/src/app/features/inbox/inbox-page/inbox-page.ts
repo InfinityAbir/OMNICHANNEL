@@ -5,6 +5,7 @@ import { ConversationListComponent } from '../conversation-list/conversation-lis
 import { ConversationDetailComponent } from '../conversation-detail/conversation-detail';
 import { EmptyStateComponent } from '../../../shared/empty-state/empty-state';
 import { ConversationService } from '../../../core/services/conversation.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-inbox-page',
@@ -16,6 +17,7 @@ import { ConversationService } from '../../../core/services/conversation.service
 export class InboxPageComponent {
   private readonly conversationsApi = inject(ConversationService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   /** Bound automatically from the :id route param (see withComponentInputBinding in app.config) — undefined on the bare /inbox route. */
   readonly id = input<string | undefined>(undefined);
@@ -55,7 +57,10 @@ export class InboxPageComponent {
           this.listRefreshToken.update((n) => n + 1);
           void this.router.navigate(['/inbox', conversation.id]);
         },
-        error: () => this.creating.set(false),
+        error: (err) => {
+          this.creating.set(false);
+          this.toast.showError(err, 'Could not create the conversation. Please try again.');
+        },
       });
   }
 }

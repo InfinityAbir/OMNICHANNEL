@@ -106,5 +106,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 14 (Analytics) — see the phase reports under `docs/phase-reports/` for what's been built,
-reviewed, and approved so far.
+Phase 15 (Production Hardening) — the final phase of the 16-phase build. See
+`docs/phase-reports/` for the complete phase-by-phase history.

@@ -4,6 +4,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { ConversationService } from '../../../core/services/conversation.service';
 import { RealtimeService } from '../../../core/services/realtime.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { ConversationSummaryResponse, ConversationStatus } from '../../../core/models/conversation.models';
 import { SkeletonComponent } from '../../../shared/skeleton/skeleton';
 import { EmptyStateComponent } from '../../../shared/empty-state/empty-state';
@@ -29,6 +30,7 @@ export class ConversationListComponent implements OnDestroy {
   private readonly conversations = inject(ConversationService);
   private readonly auth = inject(AuthService);
   private readonly realtime = inject(RealtimeService);
+  private readonly toast = inject(ToastService);
 
   /** Re-fetches when bumped — parent calls this after sending a message so the list re-sorts. */
   readonly refreshToken = input(0);
@@ -138,7 +140,10 @@ export class ConversationListComponent implements OnDestroy {
           this.nextCursor.set(page.nextCursor);
           this.loadingMore.set(false);
         },
-        error: () => this.loadingMore.set(false),
+        error: (err) => {
+          this.loadingMore.set(false);
+          this.toast.showError(err, 'Could not load more conversations.');
+        },
       });
   }
 

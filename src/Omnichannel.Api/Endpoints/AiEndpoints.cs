@@ -68,6 +68,14 @@ public static class AiEndpoints
     private static async Task<IResult> UpdateAutoReplySettingsAsync(
         UpdateAiAutoReplySettingsRequest request, AiAutoReplySettingsService service, CancellationToken cancellationToken)
     {
+        // Hardening (Phase 15): the stored column is bounded (character varying(4000)), so an
+        // oversized payload would otherwise surface as an unhandled Postgres data-length error
+        // (a 500) instead of a clean validation failure.
+        if (request.BusinessHours is { Count: > 7 } || request.BusinessHours?.Values.Any(w => w.Count > 20) == true)
+        {
+            return Results.Problem(title: "Business hours payload too large.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
         Dictionary<DayOfWeek, IReadOnlyList<BusinessHoursWindowValue>>? businessHours = null;
         if (request.BusinessHours is not null)
         {

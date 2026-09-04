@@ -97,6 +97,20 @@ public static class AutomationEndpoints
     private static async Task<IResult> UpdateBusinessHoursAsync(
         UpdateTenantBusinessHoursRequest request, TenantBusinessHoursService service, CancellationToken cancellationToken)
     {
+        // Hardening (Phase 15): the stored columns are bounded (character varying(4000)), so an
+        // oversized payload would otherwise surface as an unhandled Postgres data-length error
+        // (a 500) instead of a clean validation failure. Reject it here instead — generous bounds
+        // that no legitimate schedule/holiday-list could ever approach.
+        if (request.Holidays is { Count: > 366 })
+        {
+            return Results.Problem(title: "Too many holidays.", detail: "At most 366 holiday dates are allowed.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.BusinessHours is { Count: > 7 } || request.BusinessHours?.Values.Any(w => w.Count > 20) == true)
+        {
+            return Results.Problem(title: "Business hours payload too large.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
         Dictionary<DayOfWeek, IReadOnlyList<Omnichannel.Domain.Ai.BusinessHoursWindow>>? businessHours = null;
         if (request.BusinessHours is not null)
         {
