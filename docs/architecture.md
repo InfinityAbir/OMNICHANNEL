@@ -155,6 +155,34 @@ docs); read receipts carry only a watermark timestamp with no per-message id and
 a real limitation, not an oversight (ADR-0019). Own `MessengerOptions`, not shared with the other
 two Meta channels' config.
 
+## AI Suggestion Mode (Phase 10)
+
+First AI feature: `IAiProvider` (Application/Abstractions) → `GroqAiProvider` (Infrastructure),
+model chosen from Groq's live catalog rather than assumed (ADR-0020). `AiSuggestionService`
+builds a bounded, tenant-scoped, internal-notes-excluded context from the last 10 messages,
+calls the provider, persists the result as both the UI-facing draft and the PRD §69 interaction
+log (`AiSuggestion`). Human-approval-only (Suggest mode) — the AI drafts into the Angular
+composer, the agent reviews/edits/sends through the existing send path; nothing is ever
+auto-sent. A per-tenant daily usage cap and provider-failure handling both fall back to "reply
+manually" rather than blocking the agent. Prompt injection is defended structurally (history
+passed as separate role messages, never concatenated into instructions), and the model is
+explicitly instructed to match the customer's language *and script* (Bangla script, Banglish, or
+English) — verified against the real API with real text, not assumed. See
+[ADR-0020](decisions/ADR-0020-ai-suggestion-mode.md) and [ai.md](ai.md).
+
+## Frontend: channel indicators and theme
+
+Each conversation surfaces its source channel as a small monochrome icon (`ChannelIconComponent`,
+`currentColor`/`--text-muted` — deliberately not brand-colored, consistent with the rest of the
+design system) on the list avatar and detail header; backend exposes it as
+`ConversationSummaryResponse.channelType`/`ConversationDetailResponse.channelType`, joined from
+`ChannelAccount.Type` in `ConversationService`. A light/dark theme toggle (`ThemeService`) sets
+`data-theme` on `<html>`; `styles.scss` defines a `:root[data-theme="dark"]` override of the same
+semantic tokens (`--surface`, `--text`, `--accent`, ...) every component already uses — components
+that had hardcoded `var(--gray-N)` values instead of the semantic tokens needed fixing (found via
+actual browser verification in both themes, not assumed from the code alone) before dark mode was
+genuinely usable, not just present.
+
 ## Observability
 
 Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP export opt-in via
@@ -163,8 +191,9 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-All three PRD-scoped Meta channels (WhatsApp/Instagram/Messenger) now have real adapters. No AI
-provider abstraction, no background-processing engine (no workload so far has been slow enough to
-need one — see ADR-0016's alternatives). No media/attachment download for any channel
-(ADR-0017/0018/0019). Each is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see
-`PLAN.md` (local, not committed) for current phase status.
+All three PRD-scoped Meta channels (WhatsApp/Instagram/Messenger) now have real adapters, and
+Suggest-mode AI exists (above). No knowledge retrieval/RAG yet (Phase 11), no Auto-reply (Phase
+12), no background-processing engine (no workload so far has been slow enough to need one — see
+ADR-0016's alternatives). No media/attachment download for any channel (ADR-0017/0018/0019). Each
+is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed) for
+current phase status.

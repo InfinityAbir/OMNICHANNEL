@@ -304,6 +304,7 @@ app.MapTagsEndpoints();
 app.MapAuditEndpoints();
 app.MapWidgetEndpoints();
 app.MapChannelWebhookEndpoints();
+app.MapAiEndpoints();
 
 app.MapHub<InboxHub>("/hubs/inbox");
 app.MapHub<WidgetHub>("/hubs/widget").RequireCors("WidgetEmbed");

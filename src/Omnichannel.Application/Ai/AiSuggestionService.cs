@@ -1,0 +1,91 @@
+using Microsoft.EntityFrameworkCore;
+using Omnichannel.Application.Abstractions;
+using Omnichannel.Application.Audit;
+using Omnichannel.Domain.Ai;
+using Omnichannel.Domain.Conversations;
+
+namespace Omnichannel.Application.Ai;
+
+public enum AiSuggestionOutcome
+{
+    Generated,
+    ConversationNotFound,
+    LimitReached,
+    ProviderUnavailable,
+}
+
+public sealed record AiSuggestionResult(
+    AiSuggestionOutcome Outcome, Guid? SuggestionId = null, string? SuggestedText = null, double? Confidence = null);
+
+/// <summary>
+/// Suggest-mode workflow (PRD §69): builds a bounded, tenant-scoped context, calls the AI
+/// provider, logs the interaction, and always fails safe — a provider error or exhausted usage
+/// limit falls back to "ask a human" rather than surfacing a raw error or silently retrying
+/// forever (docs/ai.md's "safe fallback to human handling" constraint).
+/// </summary>
+public sealed class AiSuggestionService(
+    IAppDbContext db,
+    ITenantContext tenantContext,
+    TimeProvider timeProvider,
+    AuditService audit,
+    IAiProvider aiProvider,
+    IAiUsageLimiter usageLimiter)
+{
+    private const int HistoryWindowSize = 10;
+
+    public async Task<AiSuggestionResult> GetSuggestionAsync(Guid conversationId, CancellationToken cancellationToken)
+    {
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId, cancellationToken);
+        if (conversation is null)
+        {
+            return new AiSuggestionResult(AiSuggestionOutcome.ConversationNotFound);
+        }
+
+        if (!await usageLimiter.TryConsumeAsync(tenantContext.TenantId, cancellationToken))
+        {
+            return new AiSuggestionResult(AiSuggestionOutcome.LimitReached);
+        }
+
+        // Bounded window, chronological order, and — critically — internal notes are never
+        // included: they're agent-only/confidential by design (PRD §18) and must never leave the
+        // system to a third-party AI provider (AGENTS.md: "sensitive data sent to AI" is an
+        // explicit security review focus). Only the customer-visible message thread is context.
+        var history = await db.Messages
+            .Where(m => m.ConversationId == conversationId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(HistoryWindowSize)
+            .OrderBy(m => m.CreatedAt)
+            .Select(m => new AiTranscriptMessage(
+                m.SenderType == MessageSenderType.Agent || m.SenderType == MessageSenderType.Ai ? "assistant" : "user",
+                m.Text))
+            .ToListAsync(cancellationToken);
+
+        var tenantName = await db.Tenants
+            .Where(t => t.Id == tenantContext.TenantId)
+            .Select(t => t.Name)
+            .SingleOrDefaultAsync(cancellationToken) ?? "the business";
+
+        AiCompletionResult completion;
+        try
+        {
+            completion = await aiProvider.GenerateSuggestionAsync(new AiPromptContext(tenantName, history), cancellationToken);
+        }
+        catch (AiProviderException)
+        {
+            return new AiSuggestionResult(AiSuggestionOutcome.ProviderUnavailable);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var suggestion = AiSuggestion.Create(
+            tenantContext.TenantId, conversationId, completion.SuggestedText, completion.Confidence,
+            completion.Model, completion.PromptTokens, completion.CompletionTokens, now);
+        db.AiSuggestions.Add(suggestion);
+
+        audit.Record(tenantContext.TenantId, tenantContext.UserId, "ai.suggestion.generated", nameof(AiSuggestion), suggestion.Id,
+            new { conversationId, model = completion.Model, confidence = completion.Confidence });
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new AiSuggestionResult(AiSuggestionOutcome.Generated, suggestion.Id, completion.SuggestedText, completion.Confidence);
+    }
+}

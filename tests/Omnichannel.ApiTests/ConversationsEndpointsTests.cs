@@ -23,6 +23,7 @@ public class ConversationsEndpointsTests(TestWebApplicationFactory factory) : IC
         var conversation = await createResponse.Content.ReadFromJsonAsync<ConversationDetailResponse>();
         Assert.Equal("Open", conversation!.Status);
         Assert.Equal("Jane Customer", conversation.ContactDisplayName);
+        Assert.Equal("Manual", conversation.ChannelType);
 
         // Reply.
         var messageResponse = await client.PostAsJsonAsync(

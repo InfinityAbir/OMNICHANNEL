@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Audit;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Channels;
@@ -56,6 +57,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public DbSet<ChannelCredential> ChannelCredentials => Set<ChannelCredential>();
+
+    public DbSet<AiSuggestion> AiSuggestions => Set<AiSuggestion>();
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
 

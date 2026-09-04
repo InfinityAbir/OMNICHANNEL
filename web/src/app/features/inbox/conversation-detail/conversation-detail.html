@@ -13,7 +13,7 @@
     <header class="detail-header">
       <a class="back-link" routerLink="/inbox" aria-label="Back to conversation list">←</a>
       <div class="header-main">
-        <h2>{{ detail()!.contactDisplayName }}</h2>
+        <h2><app-channel-icon [channelType]="detail()!.channelType" /> {{ detail()!.contactDisplayName }}</h2>
         <p class="meta">Created {{ detail()!.createdAt | date: 'medium' }}</p>
       </div>
       <div class="header-controls">
@@ -90,6 +90,14 @@
         }
       </div>
 
+      @if (suggestionConfidence(); as confidence) {
+        <p class="meta" style="padding: 0.4rem 1.25rem 0">
+          AI suggestion drafted (confidence {{ confidence | number: '1.0-2' }}) — review and edit before sending.
+        </p>
+      }
+      @if (suggestionError(); as error) {
+        <p class="meta" style="padding: 0.4rem 1.25rem 0; color: var(--danger)">{{ error }}</p>
+      }
       <form class="composer" (ngSubmit)="send()">
         <label class="visually-hidden" for="composer-text">Message</label>
         <textarea
@@ -101,6 +109,15 @@
           name="composerText"
           (keydown.enter)="onComposerKeydown($event)"
         ></textarea>
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="suggestReply()"
+          [disabled]="suggesting()"
+          title="Draft a reply suggestion with AI — you review and edit before sending"
+        >
+          {{ suggesting() ? 'Thinking…' : '✨ Suggest' }}
+        </button>
         <button type="submit" [disabled]="sending() || composerText().trim().length === 0">
           {{ sending() ? 'Sending…' : 'Send' }}
         </button>

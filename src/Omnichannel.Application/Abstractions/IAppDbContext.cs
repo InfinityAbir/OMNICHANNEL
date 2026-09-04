@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Audit;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Channels;
@@ -46,6 +47,8 @@ public interface IAppDbContext
     DbSet<AuditLog> AuditLogs { get; }
 
     DbSet<ChannelCredential> ChannelCredentials { get; }
+
+    DbSet<AiSuggestion> AiSuggestions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 

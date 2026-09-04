@@ -58,6 +58,11 @@ rules this project is held to.
 
 Prerequisites: .NET 10 SDK, Node 24+/npm, Docker (for local PostgreSQL).
 
+**Windows shortcut:** double-click [`start.bat`](start.bat) to start Docker Desktop (if not
+already running), start Postgres, start the backend and frontend dev servers each in their own
+window, and open the frontend in your browser. [`stop.bat`](stop.bat) stops all of it. Manual
+steps below if you'd rather run things yourself or aren't on Windows.
+
 ```bash
 # 1. Environment
 cp .env.example .env   # never commit the real .env
@@ -101,5 +106,5 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 9 (Facebook Messenger Integration) — see the phase reports under `docs/phase-reports/` for
-what's been built, reviewed, and approved so far.
+Phase 10 (AI Suggestion Mode) — see the phase reports under `docs/phase-reports/` for what's
+been built, reviewed, and approved so far.

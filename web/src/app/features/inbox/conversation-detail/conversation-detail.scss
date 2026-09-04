@@ -37,6 +37,9 @@
 .header-main h2 {
   margin: 0;
   font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .meta {
@@ -61,26 +64,27 @@
   }
 }
 
-.header-controls select {
-  padding: 0.35rem 0.5rem;
+.header-controls select,
+.btn-secondary {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
   background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.header-controls select {
+  padding: 0.35rem 0.5rem;
 }
 
 .btn-secondary {
   padding: 0.35rem 0.65rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .btn-secondary:hover {
-  background: var(--gray-50);
+  background: var(--surface-muted);
 }
 
 .tags-row {
@@ -96,8 +100,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--surface-muted);
+  color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 600;
   padding: 0.15rem 0.5rem;
@@ -121,6 +125,7 @@
   border: 1px dashed var(--border);
   border-radius: 999px;
   background: var(--surface);
+  color: var(--text);
 }
 
 .new-tag-input {
@@ -147,7 +152,7 @@
 
 .tabs button.active {
   color: var(--text);
-  border-bottom-color: var(--gray-900);
+  border-bottom-color: var(--text);
 }
 
 .timeline {
@@ -182,12 +187,12 @@
   max-width: 70%;
   padding: 0.55rem 0.8rem;
   border-radius: var(--radius-md);
-  background: var(--gray-100);
+  background: var(--surface-muted);
 }
 
 .message-row.outbound .bubble {
-  background: var(--gray-900);
-  color: var(--gray-0);
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .bubble.system {
@@ -230,7 +235,7 @@
   font-size: 0.88rem;
 }
 
-.composer button,
+.composer button[type='submit'],
 .note-form button {
   padding: 0.6rem 1.1rem;
   background: var(--accent);
@@ -242,8 +247,13 @@
   cursor: pointer;
 }
 
+.composer .btn-secondary {
+  padding: 0.6rem 0.9rem;
+}
+
 .composer button:disabled,
-.note-form button:disabled {
+.note-form button:disabled,
+.btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -264,7 +274,7 @@
 }
 
 .note-item {
-  background: var(--gray-50);
+  background: var(--surface-muted);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.6rem 0.75rem;

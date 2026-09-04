@@ -86,6 +86,7 @@ public class ChannelWebhookEndpointsTests(TestWebApplicationFactory factory) : I
         var list = await (await agent.GetAsync(new Uri("/api/v1/conversations", UriKind.Relative)))
             .Content.ReadFromJsonAsync<KeysetPageResponse<ConversationSummaryResponse>>();
         Assert.Single(list!.Items);
+        Assert.Equal("WhatsApp", list.Items[0].ChannelType);
         var conversationId = list.Items[0].Id;
 
         var messages = await (await agent.GetAsync(new Uri($"/api/v1/conversations/{conversationId}/messages", UriKind.Relative)))

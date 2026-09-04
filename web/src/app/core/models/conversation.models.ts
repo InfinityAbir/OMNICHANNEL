@@ -25,6 +25,7 @@ export interface ConversationSummaryResponse {
   contactId: string;
   contactDisplayName: string;
   channelAccountId: string;
+  channelType: string;
   status: ConversationStatus;
   priority: ConversationPriority;
   assignedUserId: string | null;
@@ -38,6 +39,7 @@ export interface ConversationDetailResponse {
   contactId: string;
   contactDisplayName: string;
   channelAccountId: string;
+  channelType: string;
   status: ConversationStatus;
   priority: ConversationPriority;
   assignedUserId: string | null;

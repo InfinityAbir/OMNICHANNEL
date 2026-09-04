@@ -6,7 +6,7 @@ import { Component, input } from '@angular/core';
   styles: [
     `
       .skeleton {
-        background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 37%, var(--gray-100) 63%);
+        background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border) 37%, var(--surface-muted) 63%);
         background-size: 400% 100%;
         animation: shimmer 1.4s ease infinite;
       }
@@ -23,7 +23,7 @@ import { Component, input } from '@angular/core';
       @media (prefers-reduced-motion: reduce) {
         .skeleton {
           animation: none;
-          background: var(--gray-100);
+          background: var(--surface-muted);
         }
       }
     `,

@@ -51,6 +51,45 @@
   background: var(--gray-800);
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--gray-700);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gray-0);
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.theme-toggle svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.theme-toggle:hover {
+  background: var(--gray-800);
+}
+
+.theme-toggle-floating {
+  position: fixed;
+  top: 0.85rem;
+  right: 1.25rem;
+  z-index: 10;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-floating:hover {
+  background: var(--surface-muted);
+}
+
 .app-content {
   flex: 1;
   min-height: 0;

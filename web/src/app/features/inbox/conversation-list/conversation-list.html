@@ -47,7 +47,10 @@
           [routerLink]="['/inbox', item.id]"
           routerLinkActive="active"
         >
-          <div class="avatar" aria-hidden="true">{{ item.contactDisplayName.charAt(0).toUpperCase() }}</div>
+          <div class="avatar-wrap">
+            <div class="avatar" aria-hidden="true">{{ item.contactDisplayName.charAt(0).toUpperCase() }}</div>
+            <app-channel-icon class="channel-badge" [channelType]="item.channelType" />
+          </div>
           <div class="content">
             <div class="row-top">
               <span class="name">{{ item.contactDisplayName }}</span>

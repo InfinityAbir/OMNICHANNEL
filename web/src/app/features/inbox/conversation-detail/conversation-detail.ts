@@ -1,11 +1,13 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ConversationService } from '../../../core/services/conversation.service';
 import { TagService } from '../../../core/services/tag.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { RealtimeService } from '../../../core/services/realtime.service';
+import { AiService } from '../../../core/services/ai.service';
 import {
   ConversationDetailResponse,
   ConversationPriority,
@@ -18,6 +20,7 @@ import {
 } from '../../../core/models/conversation.models';
 import { SkeletonComponent } from '../../../shared/skeleton/skeleton';
 import { EmptyStateComponent } from '../../../shared/empty-state/empty-state';
+import { ChannelIconComponent } from '../../../shared/channel-icon/channel-icon';
 
 const STATUSES: ConversationStatus[] = [
   'Open',
@@ -33,7 +36,7 @@ const PRIORITIES: ConversationPriority[] = ['Low', 'Normal', 'High', 'Urgent'];
 @Component({
   selector: 'app-conversation-detail',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, SkeletonComponent, EmptyStateComponent],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, SkeletonComponent, EmptyStateComponent, ChannelIconComponent],
   templateUrl: './conversation-detail.html',
   styleUrl: './conversation-detail.scss',
 })
@@ -42,6 +45,7 @@ export class ConversationDetailComponent {
   private readonly tagsApi = inject(TagService);
   private readonly auth = inject(AuthService);
   private readonly realtime = inject(RealtimeService);
+  private readonly ai = inject(AiService);
 
   readonly id = input.required<string>();
   readonly changed = output<void>();
@@ -68,6 +72,9 @@ export class ConversationDetailComponent {
 
   readonly composerText = signal('');
   readonly sending = signal(false);
+  readonly suggesting = signal(false);
+  readonly suggestionConfidence = signal<number | null>(null);
+  readonly suggestionError = signal<string | null>(null);
   readonly noteText = signal('');
   readonly savingNote = signal(false);
 
@@ -165,9 +172,35 @@ export class ConversationDetailComponent {
         );
         this.composerText.set('');
         this.sending.set(false);
+        this.suggestionConfidence.set(null);
+        this.suggestionError.set(null);
         this.changed.emit();
       },
       error: () => this.sending.set(false),
+    });
+  }
+
+  /** Suggest mode only (PRD §69/§87): drafts text into the composer for the agent to review, edit, or discard — never sends anything itself. */
+  suggestReply(): void {
+    if (this.suggesting()) return;
+
+    this.suggesting.set(true);
+    this.suggestionError.set(null);
+    this.ai.generateSuggestion(this.id()).subscribe({
+      next: (suggestion) => {
+        this.composerText.set(suggestion.suggestedText);
+        this.suggestionConfidence.set(suggestion.confidence);
+        this.suggesting.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.suggestionConfidence.set(null);
+        this.suggestionError.set(
+          err.status === 429
+            ? "Today's AI suggestion limit has been reached — please reply manually."
+            : 'AI suggestion is unavailable right now — please reply manually.',
+        );
+        this.suggesting.set(false);
+      },
     });
   }
 

@@ -184,11 +184,11 @@ public static class ConversationsEndpoints
         => await conversations.RemoveTagAsync(id, tagId, cancellationToken) ? Results.NoContent() : Results.NotFound();
 
     private static ConversationSummaryResponse ToResponse(ConversationSummary c)
-        => new(c.Id, c.ContactId, c.ContactDisplayName, c.ChannelAccountId, c.Status.ToString(), c.Priority.ToString(),
+        => new(c.Id, c.ContactId, c.ContactDisplayName, c.ChannelAccountId, c.ChannelType.ToString(), c.Status.ToString(), c.Priority.ToString(),
             c.AssignedUserId, c.LastMessageAt, c.LastMessagePreview, ToTagResponses(c.Tags));
 
     private static ConversationDetailResponse ToResponse(ConversationDetail c)
-        => new(c.Id, c.ContactId, c.ContactDisplayName, c.ChannelAccountId, c.Status.ToString(), c.Priority.ToString(),
+        => new(c.Id, c.ContactId, c.ContactDisplayName, c.ChannelAccountId, c.ChannelType.ToString(), c.Status.ToString(), c.Priority.ToString(),
             c.AssignedUserId, c.AiMode.ToString(), c.LastMessageAt, c.CreatedAt, c.ClosedAt, ToTagResponses(c.Tags));
 
     private static List<TagResponse> ToTagResponses(IReadOnlyList<TagRef> tags)

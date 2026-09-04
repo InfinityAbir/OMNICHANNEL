@@ -7,6 +7,7 @@ import { RealtimeService } from '../../../core/services/realtime.service';
 import { ConversationSummaryResponse, ConversationStatus } from '../../../core/models/conversation.models';
 import { SkeletonComponent } from '../../../shared/skeleton/skeleton';
 import { EmptyStateComponent } from '../../../shared/empty-state/empty-state';
+import { ChannelIconComponent } from '../../../shared/channel-icon/channel-icon';
 
 type FilterKey = 'all' | 'mine' | 'escalated' | 'closed';
 
@@ -20,7 +21,7 @@ const FILTERS: { key: FilterKey; label: string; status?: ConversationStatus }[] 
 @Component({
   selector: 'app-conversation-list',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, DatePipe, SkeletonComponent, EmptyStateComponent],
+  imports: [RouterLink, RouterLinkActive, DatePipe, SkeletonComponent, EmptyStateComponent, ChannelIconComponent],
   templateUrl: './conversation-list.html',
   styleUrl: './conversation-list.scss',
 })

@@ -5,9 +5,46 @@
       <div class="nav-right">
         <span class="tenant-name">{{ auth.currentUser()?.tenantName }}</span>
         <span class="user-name">{{ auth.currentUser()?.displayName }}</span>
+        <button
+          type="button"
+          class="theme-toggle"
+          (click)="theme.toggle()"
+          [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          [attr.title]="theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
+          @if (theme.theme() === 'dark') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4.5" />
+              <path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.7 14.9A8.6 8.6 0 0 1 9.1 3.3a.6.6 0 0 0-.7-.8A9.8 9.8 0 1 0 21.5 15.6a.6.6 0 0 0-.8-.7Z" />
+            </svg>
+          }
+        </button>
         <button type="button" class="logout-btn" (click)="logout()">Sign out</button>
       </div>
     </header>
+  } @else {
+    <button
+      type="button"
+      class="theme-toggle theme-toggle-floating"
+      (click)="theme.toggle()"
+      [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+      [attr.title]="theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+    >
+      @if (theme.theme() === 'dark') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5" />
+          <path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+        </svg>
+      } @else {
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20.7 14.9A8.6 8.6 0 0 1 9.1 3.3a.6.6 0 0 0-.7-.8A9.8 9.8 0 1 0 21.5 15.6a.6.6 0 0 0-.8-.7Z" />
+        </svg>
+      }
+    </button>
   }
   <main class="app-content">
     <router-outlet />

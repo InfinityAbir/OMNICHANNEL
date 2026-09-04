@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Omnichannel.Application.Abstractions;
+using Omnichannel.Infrastructure.Ai;
 using Omnichannel.Infrastructure.Channels;
 using Omnichannel.Infrastructure.Email;
 using Omnichannel.Infrastructure.Identity;
@@ -51,6 +52,7 @@ public static class DependencyInjection
         services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
         services.Configure<InstagramOptions>(configuration.GetSection(InstagramOptions.SectionName));
         services.Configure<MessengerOptions>(configuration.GetSection(MessengerOptions.SectionName));
+        services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, ScopedTenantContext>();
@@ -73,6 +75,9 @@ public static class DependencyInjection
         services.AddHttpClient<IChannelAdapter, MessengerChannelAdapter>();
 
         services.AddSignalRNotifier();
+
+        services.AddHttpClient<IAiProvider, GroqAiProvider>();
+        services.AddScoped<IAiUsageLimiter, AiUsageLimiter>();
 
         return services;
     }

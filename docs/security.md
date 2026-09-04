@@ -3,6 +3,31 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 10 controls (AI Suggestion Mode)
+
+- **Prompt injection**: conversation history is passed as separate role-tagged messages, never
+  string-concatenated into the system instruction text — structural, not just instructional,
+  defense (ADR-0020). Verified: `AiEndpointsTests.
+  GenerateSuggestion_CustomerMessageIsPassedAsDataNotConcatenatedIntoInstructions`.
+- **Cross-tenant context leakage**: the suggestion endpoint resolves the conversation through the
+  same tenant-scoped query every other conversation endpoint uses; a tenant can never generate a
+  suggestion for (and thereby read) another tenant's conversation. Verified:
+  `AiSuggestionSecurityTests.GenerateSuggestion_CannotReachAnotherTenantsConversation`.
+- **Sensitive data sent to AI**: only the customer-visible message thread is included in context
+  — internal notes (agent-only/confidential, PRD §18) are never sent to the third-party provider.
+  Verified: `AiEndpointsTests.GenerateSuggestion_InternalNotesNeverIncludedInContext`.
+- **Provider credentials**: the Groq API key lives in `dotnet user-secrets`/deployment secrets
+  only (`Ai:Groq:ApiKey`), never committed — same discipline as every other provider credential in
+  this codebase.
+- **AI output validation**: the provider's response is defensively parsed (malformed JSON falls
+  back to raw-text-with-low-confidence rather than crashing the request), and the AI's output is
+  never sent to a customer automatically — a human always reviews/edits/sends (PRD §87, Suggest
+  mode only this phase).
+- **Logging**: `AiSuggestion` persists full suggestion text/tokens/confidence in the database (an
+  interaction log, not a structured application log) — the "don't log message content" policy
+  below governs Serilog output, not this table, consistent with how every other message/note is
+  already persisted in full.
+
 ## Phase 9 controls (Facebook Messenger Integration)
 
 - **Repeat of the external-integration security checklist** (PRD §68): webhook signature
@@ -292,12 +317,25 @@ it's inherited by every later phase instead of retrofitted once real customer da
   connection is manual entry everywhere.
 - Watermark-range read-receipt support (Messenger's `read` event has no per-message id — ADR-0019)
   — would need a deliberate extension to the status-update model, not yet built.
-- AI-specific threats (prompt injection, cross-tenant retrieval leakage, output validation) —
-  Phase 10+; see [ai.md](ai.md).
-- File upload/attachment security — Phase 5+ (website chat is the first channel with
-  attachments).
+- Knowledge-retrieval-specific AI threats (cross-tenant retrieval leakage through RAG, prompt
+  injection via retrieved documents) — Phase 11, once retrieval exists; prompt injection via
+  conversation content and sensitive-data-to-AI are already addressed as of Phase 10 (above).
+- File upload/attachment security — no channel has attachment handling yet (tracked per-channel:
+  ADR-0017/0018/0019 for messaging channels, original website-chat scope for that channel).
 
 ## Security review log
+
+**Phase 10** (2026-09-04) — scope: AI Suggestion Mode, first AI feature. Reviewed against
+AGENTS.md's AI safety focus: prompt injection (structural defense, not just instructional),
+cross-tenant context leakage (re-verified against the real endpoint, not assumed from the generic
+tenant-isolation pattern), sensitive data sent to AI (internal notes explicitly excluded from
+context), provider credentials (secrets-only, never committed), AI output validation (defensive
+parsing, human-approval-only mode). No high/critical findings. 136/136 backend tests green (8 new
+AI-specific tests: successful suggestion + interaction log, unknown conversation, provider
+failure fallback, internal-notes exclusion, prompt-injection structural check, non-Latin-script
+round-trip integrity, daily limit enforcement, cross-tenant isolation) — CI checked. Language/
+script matching (Bangla, Banglish) verified against the real Groq API with real text, not assumed
+from documentation (see `docs/phase-reports/phase-10.md` for the actual exchanges).
 
 **Phase 9** (2026-09-04) — scope: Facebook Messenger integration, third real `IChannelAdapter`.
 Repeated the external-integration security checklist per PRD §68's explicit instruction rather

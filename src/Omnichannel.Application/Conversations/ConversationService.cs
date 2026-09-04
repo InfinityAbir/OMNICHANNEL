@@ -425,7 +425,8 @@ public sealed class ConversationService(
             from conv in db.Conversations
             where conv.Id == conversationId
             join contact in db.Contacts on conv.ContactId equals contact.Id
-            select new { Conversation = conv, contact.DisplayName }
+            join channel in db.ChannelAccounts on conv.ChannelAccountId equals channel.Id
+            select new { Conversation = conv, contact.DisplayName, channel.Type }
         ).SingleOrDefaultAsync(cancellationToken);
 
         if (result is null)
@@ -436,7 +437,7 @@ public sealed class ConversationService(
         var tags = await GetTagNamesAsync(conversationId, cancellationToken);
         var conversation = result.Conversation;
         return new ConversationDetail(
-            conversation.Id, conversation.ContactId, result.DisplayName, conversation.ChannelAccountId, conversation.Status, conversation.Priority,
+            conversation.Id, conversation.ContactId, result.DisplayName, conversation.ChannelAccountId, result.Type, conversation.Status, conversation.Priority,
             conversation.AssignedUserId, conversation.AiMode, conversation.LastMessageAt, conversation.CreatedAt, conversation.ClosedAt, tags);
     }
 
@@ -449,7 +450,8 @@ public sealed class ConversationService(
         var query =
             from conv in db.Conversations
             join contact in db.Contacts on conv.ContactId equals contact.Id
-            select new { Conversation = conv, contact.DisplayName };
+            join channel in db.ChannelAccounts on conv.ChannelAccountId equals channel.Id
+            select new { Conversation = conv, contact.DisplayName, channel.Type };
 
         if (status.HasValue)
         {
@@ -489,7 +491,7 @@ public sealed class ConversationService(
         var tagsByConversation = await GetTagNamesForConversationsAsync(items.Select(x => x.Conversation.Id), cancellationToken);
 
         var summaries = items.Select(x => new ConversationSummary(
-            x.Conversation.Id, x.Conversation.ContactId, x.DisplayName, x.Conversation.ChannelAccountId, x.Conversation.Status, x.Conversation.Priority,
+            x.Conversation.Id, x.Conversation.ContactId, x.DisplayName, x.Conversation.ChannelAccountId, x.Type, x.Conversation.Status, x.Conversation.Priority,
             x.Conversation.AssignedUserId, x.Conversation.LastMessageAt, x.Conversation.LastMessagePreview,
             tagsByConversation.GetValueOrDefault(x.Conversation.Id, []))).ToList();
 

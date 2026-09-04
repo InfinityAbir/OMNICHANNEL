@@ -35,6 +35,19 @@
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
 }
 
+// Same monochrome scale, roles inverted — ThemeService sets data-theme on <html>.
+:root[data-theme="dark"] {
+  --surface: var(--gray-900);
+  --surface-muted: var(--gray-800);
+  --border: var(--gray-700);
+  --text: var(--gray-0);
+  --text-muted: var(--gray-400);
+  --accent: var(--gray-0);
+  --accent-contrast: var(--gray-900);
+  --danger-bg: #3f1616;
+  --success-bg: #113420;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -42,12 +42,12 @@
 }
 
 .filter-tab:hover {
-  background: var(--gray-100);
+  background: var(--surface-muted);
 }
 
 .filter-tab.active {
-  background: var(--gray-900);
-  color: var(--gray-0);
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .list {
@@ -82,25 +82,39 @@
 }
 
 .conversation-item:hover {
-  background: var(--gray-50);
+  background: var(--surface-muted);
 }
 
 .conversation-item.active {
-  background: var(--gray-100);
+  background: var(--border);
+}
+
+.avatar-wrap {
+  position: relative;
+  flex: none;
 }
 
 .avatar {
-  flex: none;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 999px;
-  background: var(--gray-800);
-  color: var(--gray-0);
+  background: var(--accent);
+  color: var(--accent-contrast);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.channel-badge {
+  position: absolute;
+  right: -0.2rem;
+  bottom: -0.2rem;
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 0.15rem;
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 .content {
@@ -154,8 +168,8 @@
 }
 
 .badge.priority {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--surface-muted);
+  color: var(--text-muted);
 }
 
 .badge.priority.urgent {
@@ -171,8 +185,8 @@
 }
 
 .badge.tag {
-  background: var(--gray-100);
-  color: var(--gray-600);
+  background: var(--surface-muted);
+  color: var(--text-muted);
 }
 
 .load-more {
@@ -189,7 +203,7 @@
 }
 
 .load-more:hover:not(:disabled) {
-  background: var(--gray-50);
+  background: var(--surface-muted);
 }
 
 .load-more:disabled {

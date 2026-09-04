@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Omnichannel.Application.Ai;
 using Omnichannel.Application.Audit;
 using Omnichannel.Application.Auth;
 using Omnichannel.Application.Channels;
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<WidgetService>();
         services.AddScoped<WebhookIngestionService>();
         services.AddScoped<ChannelSendService>();
+        services.AddScoped<AiSuggestionService>();
         return services;
     }
 }
