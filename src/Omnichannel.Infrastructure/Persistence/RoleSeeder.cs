@@ -11,27 +11,51 @@ namespace Omnichannel.Infrastructure.Persistence;
 /// </summary>
 public static class RoleSeeder
 {
+    // Arbitrary fixed key for the session-level advisory lock below — only needs to be unique
+    // within this database, and nothing else in the codebase takes an advisory lock.
+    private const long SeedLockKey = 872364501;
+
     public static async Task SeedAsync(AppDbContext db, CancellationToken cancellationToken)
     {
-        if (await db.Roles.AnyAsync(cancellationToken))
+        var connection = db.Database.GetDbConnection();
+        var openedHere = connection.State != System.Data.ConnectionState.Open;
+        if (openedHere)
         {
-            return;
+            await connection.OpenAsync(cancellationToken);
         }
 
-        db.Roles.AddRange(BuildSeedRoles());
+        // A plain "check, then insert" race across concurrent processes (e.g. multiple
+        // WebApplicationFactory hosts starting at once in the test suite, all hitting the same
+        // shared database) produced both a duplicate-key violation and a Postgres deadlock in
+        // real CI runs — the unique index alone wasn't enough to make this safe. A session-level
+        // advisory lock serializes the whole check-then-insert across connections; role seeding
+        // is a rare startup-time operation, so losing concurrency here costs nothing.
+        await using (var lockCommand = connection.CreateCommand())
+        {
+            lockCommand.CommandText = $"SELECT pg_advisory_lock({SeedLockKey})";
+            await lockCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
 
         try
         {
+            if (await db.Roles.AnyAsync(cancellationToken))
+            {
+                return;
+            }
+
+            db.Roles.AddRange(BuildSeedRoles());
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        finally
         {
-            // Another process seeded the same fixed rows between our check and this insert
-            // (e.g. two WebApplicationFactory hosts starting concurrently in tests) — the
-            // unique index on SystemRole guarantees no duplicate, so this is a benign race,
-            // not a real failure. Clear the change tracker so the failed insert attempts are
-            // detached; otherwise EF will keep re-sending them on the next SaveChangesAsync.
-            db.ChangeTracker.Clear();
+            await using var unlockCommand = connection.CreateCommand();
+            unlockCommand.CommandText = $"SELECT pg_advisory_unlock({SeedLockKey})";
+            await unlockCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            if (openedHere)
+            {
+                await connection.CloseAsync();
+            }
         }
     }
 
