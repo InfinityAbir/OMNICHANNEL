@@ -1,6 +1,7 @@
 using Omnichannel.Application.Ai;
 using Omnichannel.Application.Conversations;
 using Omnichannel.Contracts.Ai;
+using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Conversations;
 
@@ -22,7 +23,91 @@ public static class AiEndpoints
         app.MapPut("/api/v1/ai/auto-reply-settings", UpdateAutoReplySettingsAsync)
             .RequireAuthorization(PermissionKeys.AiConfigure);
 
+        app.MapGet("/api/v1/ai/provider-settings", GetProviderSettingsAsync)
+            .RequireAuthorization(PermissionKeys.AiRead);
+
+        app.MapPut("/api/v1/ai/provider-settings", UpdateProviderSettingsAsync)
+            .RequireAuthorization(PermissionKeys.AiConfigure);
+
+        app.MapDelete("/api/v1/ai/provider-settings/key", ClearProviderApiKeyAsync)
+            .RequireAuthorization(PermissionKeys.AiConfigure);
+
+        app.MapPost("/api/v1/ai/provider-settings/test", TestProviderAsync)
+            .RequireAuthorization(PermissionKeys.AiConfigure);
+
+        app.MapPost("/api/v1/ai/provider-settings/detect", DetectProviderAsync)
+            .RequireAuthorization(PermissionKeys.AiConfigure);
+
         return app;
+    }
+
+    private static async Task<IResult> GetProviderSettingsAsync(AiProviderSettingsService service, CancellationToken cancellationToken)
+    {
+        var (settings, hasApiKey) = await service.GetAsync(cancellationToken);
+        return Results.Ok(new AiProviderSettingsResponse(settings.ProviderKind.ToString(), settings.BaseUrl, settings.Model, hasApiKey));
+    }
+
+    private static async Task<IResult> UpdateProviderSettingsAsync(
+        UpdateAiProviderSettingsRequest request, AiProviderSettingsService service, CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<AiProviderKind>(request.ProviderKind, ignoreCase: true, out var providerKind))
+        {
+            return Results.Problem(
+                title: "Invalid provider kind.",
+                detail: $"'{request.ProviderKind}' is not valid. Valid values: {string.Join(", ", Enum.GetNames<AiProviderKind>())}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Model))
+        {
+            return Results.Problem(title: "Model is required.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (providerKind == AiProviderKind.OpenAiCompatible && string.IsNullOrWhiteSpace(request.BaseUrl))
+        {
+            return Results.Problem(title: "Base URL is required for an OpenAI-compatible provider.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        try
+        {
+            var (settings, hasApiKey) = await service.UpdateAsync(providerKind, request.BaseUrl, request.Model, request.ApiKey, cancellationToken);
+            return Results.Ok(new AiProviderSettingsResponse(settings.ProviderKind.ToString(), settings.BaseUrl, settings.Model, hasApiKey));
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.Problem(title: "Invalid provider settings.", detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+    }
+
+    private static async Task<IResult> ClearProviderApiKeyAsync(AiProviderSettingsService service, CancellationToken cancellationToken)
+    {
+        await service.ClearApiKeyAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> TestProviderAsync(AiProviderSettingsService service, CancellationToken cancellationToken)
+    {
+        var result = await service.TestAsync(cancellationToken);
+        return Results.Ok(new AiProviderTestResponse(result.Success, result.Message));
+    }
+
+    private static async Task<IResult> DetectProviderAsync(
+        DetectAiProviderRequest request, AiProviderSettingsService service, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.ApiKey))
+        {
+            return Results.Problem(title: "API key is required.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        AiProviderKind? hintedKind = null;
+        if (!string.IsNullOrWhiteSpace(request.ProviderKind) && Enum.TryParse<AiProviderKind>(request.ProviderKind, ignoreCase: true, out var parsed))
+        {
+            hintedKind = parsed;
+        }
+
+        var result = await service.DetectAsync(request.ApiKey, hintedKind, request.BaseUrl, cancellationToken);
+        return Results.Ok(new DetectAiProviderResponse(
+            result.Success, result.Message, result.ProviderKind.ToString(), result.BaseUrl, result.AvailableModels, result.SuggestedModel));
     }
 
     private static async Task<IResult> GenerateSuggestionAsync(Guid id, AiSuggestionService service, CancellationToken cancellationToken)

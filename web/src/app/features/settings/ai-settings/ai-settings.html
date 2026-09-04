@@ -1,0 +1,56 @@
+<div class="settings-screen">
+  <h2>AI Auto-Reply</h2>
+  <p class="subtitle">
+    Lets the AI send replies automatically, within limits. Off by default — a conversation also needs its own AI mode
+    set to "Auto-Reply" (from the conversation view) before this applies to it.
+  </p>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="40%" />
+      <br />
+      <app-skeleton height="2.2rem" />
+    </div>
+  } @else {
+    <div class="card">
+      <h3>General</h3>
+      <div class="checkbox-field">
+        <input id="ai-enabled" type="checkbox" [ngModel]="enabled()" (ngModelChange)="enabled.set($event)" />
+        <label for="ai-enabled">Enable AI auto-reply for this business</label>
+      </div>
+
+      <div class="field">
+        <label for="ai-confidence">Confidence threshold ({{ confidenceThreshold() | number: '1.0-2' }})</label>
+        <span class="hint">Only auto-reply when the AI is at least this confident. Higher is more conservative.</span>
+        <input
+          id="ai-confidence"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          [ngModel]="confidenceThreshold()"
+          (ngModelChange)="confidenceThreshold.set($event)"
+        />
+      </div>
+
+      <div class="field">
+        <label for="ai-limit">Daily auto-reply limit</label>
+        <span class="hint">Maximum AI-sent messages per day, across all conversations.</span>
+        <input id="ai-limit" type="number" min="0" [ngModel]="dailyLimit()" (ngModelChange)="dailyLimit.set($event)" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Business hours (AI-specific)</h3>
+      <p class="hint" style="margin-bottom: 1rem;">
+        The AI only auto-replies during these hours. Unconfigured days are treated as closed — nothing sends until you
+        set a schedule.
+      </p>
+      <app-business-hours-editor [schedule]="schedule()" (scheduleChange)="schedule.set($event)" />
+    </div>
+
+    <button type="button" class="btn-primary" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Saving…' : 'Save AI settings' }}
+    </button>
+  }
+</div>

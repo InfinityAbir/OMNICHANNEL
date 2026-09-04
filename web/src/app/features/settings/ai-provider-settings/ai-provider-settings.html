@@ -1,0 +1,101 @@
+<div class="settings-screen">
+  <h2>AI Provider</h2>
+  <p class="subtitle">
+    Which AI powers Suggest mode and auto-reply for this business. Works out of the box using the
+    platform's own default — add your own key any time to use your own provider/account instead.
+  </p>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="40%" />
+      <br />
+      <app-skeleton height="2.2rem" />
+    </div>
+  } @else {
+    <div class="card">
+      <h3>Provider</h3>
+
+      <div class="field">
+        <label for="provider-preset">Preset</label>
+        <span class="hint">Auto-fills the provider type and endpoint. Not limited to this list — pick "Custom" for any other OpenAI-compatible endpoint.</span>
+        <select id="provider-preset" (change)="applyPreset($any($event.target).value)">
+          @for (preset of presets; track preset.label; let i = $index) {
+            <option [value]="i">{{ preset.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="provider-kind">Provider type</label>
+        <select id="provider-kind" [ngModel]="providerKind()" (ngModelChange)="providerKind.set($event)">
+          <option value="OpenAiCompatible">OpenAI-compatible (Groq, OpenAI, Together, Fireworks, Mistral, DeepSeek, OpenRouter, self-hosted, ...)</option>
+          <option value="Anthropic">Anthropic (Claude)</option>
+        </select>
+      </div>
+
+      @if (providerKind() === 'OpenAiCompatible') {
+        <div class="field">
+          <label for="provider-base-url">Base URL</label>
+          <input id="provider-base-url" type="text" [ngModel]="baseUrl()" (ngModelChange)="baseUrl.set($event)" placeholder="https://api.groq.com/openai/v1" />
+        </div>
+      }
+
+      <div class="field">
+        <label for="provider-api-key">API key</label>
+        <span class="hint">
+          @if (hasApiKey()) {
+            A key is already saved — leave blank to keep it, or paste a new one to replace it.
+          } @else {
+            No key set yet — the platform's own default is used until you add one.
+          }
+        </span>
+        <div class="row-actions">
+          <input
+            id="provider-api-key"
+            type="password"
+            style="flex: 1;"
+            [ngModel]="apiKeyDraft()"
+            (ngModelChange)="apiKeyDraft.set($event)"
+            placeholder="Paste your API key"
+          />
+          <button type="button" class="btn-secondary" [disabled]="detecting() || !apiKeyDraft().trim()" (click)="detectFromKey()">
+            {{ detecting() ? 'Detecting…' : 'Auto-detect model' }}
+          </button>
+        </div>
+        @if (hasApiKey()) {
+          <button type="button" class="btn-danger" style="margin-top: 0.5rem; align-self: flex-start;" (click)="clearApiKey()">
+            Remove saved key
+          </button>
+        }
+      </div>
+
+      <div class="field">
+        <label for="provider-model">Model</label>
+        @if (detectedModels().length > 0) {
+          <span class="hint">Detected from your key — pick one, or type any other model id.</span>
+          <select [ngModel]="model()" (ngModelChange)="model.set($event)">
+            @for (m of detectedModels(); track m) {
+              <option [value]="m">{{ m }}</option>
+            }
+          </select>
+        }
+        <input id="provider-model" type="text" [ngModel]="model()" (ngModelChange)="model.set($event)" placeholder="e.g. openai/gpt-oss-120b" />
+      </div>
+
+      <div class="row-actions">
+        <button type="button" class="btn-primary" [disabled]="saving() || !model().trim()" (click)="save()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+        <button type="button" class="btn-secondary" [disabled]="testing()" (click)="testConnection()">
+          {{ testing() ? 'Testing…' : 'Test connection' }}
+        </button>
+      </div>
+
+      @if (lastTestResult(); as result) {
+        <p class="hint" [style.color]="result.success ? 'var(--success)' : 'var(--danger)'" style="margin-top: 0.75rem;">
+          {{ result.message }}
+        </p>
+      }
+    </div>
+  }
+</div>

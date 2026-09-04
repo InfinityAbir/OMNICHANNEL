@@ -61,7 +61,7 @@ public sealed class AiAutoReplyService(
     TimeProvider timeProvider,
     AuditService audit,
     IRealtimeNotifier realtime,
-    IAiProvider aiProvider,
+    IAiProviderResolver aiProviderResolver,
     IKnowledgeRetrievalService knowledgeRetrieval,
     ChannelSendService channelSend)
 {
@@ -125,6 +125,7 @@ public sealed class AiAutoReplyService(
         AiCompletionResult completion;
         try
         {
+            var aiProvider = await aiProviderResolver.ResolveAsync(tenantId, cancellationToken);
             completion = await aiProvider.GenerateSuggestionAsync(new AiPromptContext(tenant.Name, history, knowledgeSnippets), cancellationToken);
         }
         catch (AiProviderException)

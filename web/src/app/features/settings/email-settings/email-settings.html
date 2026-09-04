@@ -1,0 +1,91 @@
+<div class="settings-screen">
+  <h2>Email (SMTP)</h2>
+  <p class="subtitle">
+    Where transactional emails (password reset, escalation notices) send from. Leave unconfigured
+    to use the platform's own default mail server.
+  </p>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="40%" />
+      <br />
+      <app-skeleton height="2.2rem" />
+    </div>
+  } @else {
+    <div class="card">
+      <div class="channel-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">SMTP server</h3>
+        @if (isConfigured()) {
+          <span class="badge badge-on">Using your own SMTP</span>
+        } @else {
+          <span class="badge">Using platform default</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="smtp-preset">Provider</label>
+        <span class="hint">Auto-fills the host and port. Not limited to this list — pick "Custom" for any other SMTP server.</span>
+        <select id="smtp-preset" (change)="applyPreset($any($event.target).value)">
+          @for (preset of presets; track preset.label; let i = $index) {
+            <option [value]="i">{{ preset.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="smtp-host">Host</label>
+        <input id="smtp-host" type="text" [ngModel]="host()" (ngModelChange)="host.set($event)" placeholder="smtp.gmail.com" />
+      </div>
+
+      <div class="field">
+        <label for="smtp-port">Port</label>
+        <input id="smtp-port" type="number" [ngModel]="port()" (ngModelChange)="port.set($event)" placeholder="587" />
+      </div>
+
+      <div class="field">
+        <label for="smtp-username">Username</label>
+        <input id="smtp-username" type="text" [ngModel]="username()" (ngModelChange)="username.set($event)" placeholder="you@example.com" />
+      </div>
+
+      <div class="field">
+        <label for="smtp-password">App password</label>
+        <span class="hint">
+          @if (hasPassword()) {
+            A password is already saved — leave blank to keep it, or type a new one to replace it.
+          } @else {
+            Most providers require an app-specific password, not your regular account password.
+          }
+        </span>
+        <input id="smtp-password" type="password" [ngModel]="passwordDraft()" (ngModelChange)="passwordDraft.set($event)" placeholder="App password" />
+      </div>
+
+      <div class="field">
+        <label for="smtp-from-address">From address</label>
+        <input id="smtp-from-address" type="text" [ngModel]="fromAddress()" (ngModelChange)="fromAddress.set($event)" placeholder="support@example.com" />
+      </div>
+
+      <div class="field">
+        <label for="smtp-from-name">From name (optional)</label>
+        <input id="smtp-from-name" type="text" [ngModel]="fromName()" (ngModelChange)="fromName.set($event)" placeholder="Your Business" />
+      </div>
+
+      <div class="row-actions">
+        <button type="button" class="btn-primary" [disabled]="saving() || !host().trim() || !username().trim() || !fromAddress().trim()" (click)="save()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+        <button type="button" class="btn-secondary" [disabled]="testing()" (click)="testConnection()">
+          {{ testing() ? 'Sending…' : 'Send test email' }}
+        </button>
+        @if (isConfigured()) {
+          <button type="button" class="btn-danger" (click)="clear()">Clear (use platform default)</button>
+        }
+      </div>
+
+      @if (lastTestResult(); as result) {
+        <p class="hint" [style.color]="result.success ? 'var(--success)' : 'var(--danger)'" style="margin-top: 0.75rem;">
+          {{ result.message }}
+        </p>
+      }
+    </div>
+  }
+</div>

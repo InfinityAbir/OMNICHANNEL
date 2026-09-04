@@ -1,0 +1,88 @@
+<div class="settings-screen">
+  <h2>Channels</h2>
+  <p class="subtitle">Connect WhatsApp, Instagram, Messenger, and configure your website chat widget.</p>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="40%" />
+      <br />
+      <app-skeleton height="2.2rem" />
+    </div>
+  } @else {
+    @for (type of channelTypes; track type) {
+      <div class="card">
+        <div class="channel-header">
+          <h3>{{ type }}</h3>
+          @if (accounts()[type]?.credentialConfigured) {
+            <span class="badge badge-on">Connected</span>
+          } @else {
+            <span class="badge badge-off">Not connected</span>
+          }
+        </div>
+
+        <div class="field">
+          <label [for]="type + '-account'">External account ID</label>
+          <span class="hint">The provider's own id for this account (e.g. WhatsApp Business phone_number_id).</span>
+          <input
+            [id]="type + '-account'"
+            type="text"
+            [ngModel]="externalAccountIdDrafts()[type] ?? ''"
+            (ngModelChange)="updateExternalAccountDraft(type, $event)"
+            placeholder="e.g. 109876543210987"
+          />
+        </div>
+        <button type="button" class="btn-secondary" [disabled]="saving() === type" (click)="saveExternalAccount(type)">
+          {{ saving() === type ? 'Saving…' : 'Save account ID' }}
+        </button>
+
+        <div class="field" style="margin-top: 1.25rem;">
+          <label [for]="type + '-credential'">Access token / secret</label>
+          <span class="hint">Stored encrypted. Never shown again after saving.</span>
+          <input
+            [id]="type + '-credential'"
+            type="password"
+            [ngModel]="credentialDrafts()[type] ?? ''"
+            (ngModelChange)="updateCredentialDraft(type, $event)"
+            placeholder="Paste the provider access token"
+          />
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn-secondary" [disabled]="saving() === type" (click)="saveCredential(type)">
+            {{ saving() === type ? 'Saving…' : 'Save credential' }}
+          </button>
+          @if (accounts()[type]?.credentialConfigured) {
+            <button type="button" class="btn-danger" [disabled]="saving() === type" (click)="disconnectCredential(type)">
+              Remove credential
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="card">
+      <div class="channel-header">
+        <h3>Website Chat</h3>
+        @if (widgetSettings()?.enabled) {
+          <span class="badge badge-on">Enabled</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="widget-origins">Allowed embed origins</label>
+        <span class="hint">One origin per line (e.g. https://example.com). Your widget only loads on these sites.</span>
+        <textarea id="widget-origins" rows="4" [ngModel]="widgetOriginsDraft()" (ngModelChange)="widgetOriginsDraft.set($event)"></textarea>
+      </div>
+      <button type="button" class="btn-secondary" [disabled]="savingWidget()" (click)="saveWidgetOrigins()">
+        {{ savingWidget() ? 'Saving…' : 'Save origins' }}
+      </button>
+
+      @if (widgetSettings(); as widget) {
+        <div class="field" style="margin-top: 1.25rem;">
+          <label>Embed snippet</label>
+          <span class="hint">Paste this on any allowed origin to add the chat widget.</span>
+          <textarea rows="3" readonly [ngModel]="widget.embedSnippet"></textarea>
+        </div>
+      }
+    </div>
+  }
+</div>

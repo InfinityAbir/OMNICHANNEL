@@ -34,6 +34,8 @@ public static class DependencyInjection
         services.AddScoped<SavedReplyService>();
         services.AddScoped<NotificationService>();
         services.AddScoped<AnalyticsService>();
+        services.AddScoped<AiProviderSettingsService>();
+        services.AddScoped<EmailSettingsService>();
         return services;
     }
 }

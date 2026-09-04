@@ -1,0 +1,63 @@
+<div class="settings-screen">
+  <div class="toolbar">
+    <div>
+      <h2>Saved Replies</h2>
+      <p class="subtitle">Reusable canned responses, available to every agent from the composer.</p>
+    </div>
+    <button type="button" class="btn-primary" (click)="openCreate()">+ New reply</button>
+  </div>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="50%" />
+    </div>
+  } @else if (replies().length === 0) {
+    <app-empty-state title="No saved replies yet" message="Add common responses so agents can insert them with one click." />
+  } @else {
+    <div class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Text</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (reply of replies(); track reply.id) {
+            <tr>
+              <td>{{ reply.title }}</td>
+              <td class="truncate-cell">{{ reply.text }}</td>
+              <td class="row-actions">
+                <button type="button" class="btn-secondary" (click)="openEdit(reply)">Edit</button>
+                <button type="button" class="btn-danger" (click)="delete(reply)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (showForm()) {
+    <div class="modal-backdrop" (click)="closeForm()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>{{ editingId() ? 'Edit saved reply' : 'New saved reply' }}</h2>
+        <div class="field">
+          <label for="reply-title">Title</label>
+          <input id="reply-title" type="text" [ngModel]="titleDraft()" (ngModelChange)="titleDraft.set($event)" />
+        </div>
+        <div class="field">
+          <label for="reply-text">Text</label>
+          <textarea id="reply-text" rows="5" [ngModel]="textDraft()" (ngModelChange)="textDraft.set($event)"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+          <button type="button" class="btn-primary" [disabled]="saving() || !titleDraft().trim() || !textDraft().trim()" (click)="save()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

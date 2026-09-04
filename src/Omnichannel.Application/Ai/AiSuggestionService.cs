@@ -28,7 +28,7 @@ public sealed class AiSuggestionService(
     ITenantContext tenantContext,
     TimeProvider timeProvider,
     AuditService audit,
-    IAiProvider aiProvider,
+    IAiProviderResolver aiProviderResolver,
     IAiUsageLimiter usageLimiter,
     IKnowledgeRetrievalService knowledgeRetrieval)
 {
@@ -85,6 +85,7 @@ public sealed class AiSuggestionService(
         AiCompletionResult completion;
         try
         {
+            var aiProvider = await aiProviderResolver.ResolveAsync(tenantContext.TenantId, cancellationToken);
             completion = await aiProvider.GenerateSuggestionAsync(new AiPromptContext(tenantName, history, knowledgeSnippets), cancellationToken);
         }
         catch (AiProviderException)

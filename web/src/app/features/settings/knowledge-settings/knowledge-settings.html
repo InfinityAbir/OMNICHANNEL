@@ -1,0 +1,107 @@
+<div class="settings-screen">
+  <div class="toolbar">
+    <div>
+      <h2>Knowledge Base</h2>
+      <p class="subtitle">Documents the AI can reference when drafting replies.</p>
+    </div>
+    <button type="button" class="btn-primary" (click)="openCreate()">+ New document</button>
+  </div>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="50%" />
+    </div>
+  } @else if (documents().length === 0) {
+    <app-empty-state title="No documents yet" message="Add one so the AI can answer from your business's own facts." />
+  } @else {
+    <div class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Chunks</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (doc of documents(); track doc.id) {
+            <tr>
+              <td>{{ doc.title }}</td>
+              <td>{{ doc.version }}</td>
+              <td><span class="badge" [class.badge-on]="doc.status === 'Active'">{{ doc.status }}</span></td>
+              <td>{{ doc.chunkCount }}</td>
+              <td>{{ doc.updatedAt | date: 'medium' }}</td>
+              <td class="row-actions">
+                <button type="button" class="btn-secondary" (click)="openEdit(doc)">Edit</button>
+                @if (doc.status === 'Active') {
+                  <button type="button" class="btn-danger" (click)="archive(doc)">Archive</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="card">
+    <h3>Test search</h3>
+    <div class="field">
+      <label for="kb-search">Try a customer question</label>
+      <input
+        id="kb-search"
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        (keydown.enter)="runSearch()"
+        placeholder="e.g. what's your return policy?"
+      />
+    </div>
+    <button type="button" class="btn-secondary" [disabled]="searching()" (click)="runSearch()">
+      {{ searching() ? 'Searching…' : 'Search' }}
+    </button>
+
+    @if (searchResults(); as results) {
+      @if (results.length === 0) {
+        <p class="subtitle" style="margin-top: 1rem;">No matching chunks found.</p>
+      } @else {
+        <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+          @for (result of results; track result.documentId + result.chunkText) {
+            <div class="card" style="margin-bottom: 0;">
+              <strong>{{ result.documentTitle }}</strong>
+              <p class="subtitle" style="margin: 0.3rem 0 0;">{{ result.chunkText }}</p>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  @if (showForm()) {
+    <div class="modal-backdrop" (click)="closeForm()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>{{ editingId() ? 'Edit document' : 'New document' }}</h2>
+        <div class="field">
+          <label for="doc-title">Title</label>
+          <input id="doc-title" type="text" [ngModel]="titleDraft()" (ngModelChange)="titleDraft.set($event)" />
+        </div>
+        <div class="field">
+          <label for="doc-content">Content</label>
+          @if (editingId()) {
+            <span class="hint">Editing requires re-entering the full content (not pre-filled, to avoid silently keeping stale text).</span>
+          }
+          <textarea id="doc-content" rows="8" [ngModel]="contentDraft()" (ngModelChange)="contentDraft.set($event)"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+          <button type="button" class="btn-primary" [disabled]="saving() || !titleDraft().trim() || !contentDraft().trim()" (click)="save()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

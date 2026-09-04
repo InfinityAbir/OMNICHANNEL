@@ -11,8 +11,10 @@ using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Common;
 using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
+using Omnichannel.Domain.Email;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Notifications;
+using Omnichannel.Domain.Security;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
 using Omnichannel.Infrastructure.Identity;
@@ -76,6 +78,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<SavedReply> SavedReplies => Set<SavedReply>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<TenantSecret> TenantSecrets => Set<TenantSecret>();
+
+    public DbSet<TenantAiProviderSettings> TenantAiProviderSettings => Set<TenantAiProviderSettings>();
+
+    public DbSet<TenantEmailSettings> TenantEmailSettings => Set<TenantEmailSettings>();
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
 

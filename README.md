@@ -106,5 +106,10 @@ See [`docs/deployment.md`](docs/deployment.md) for environment details and
 
 ## Status
 
-Phase 15 (Production Hardening) — the final phase of the 16-phase build. See
-`docs/phase-reports/` for the complete phase-by-phase history.
+The full 16-phase build (Phase 0-15) is complete — see `docs/phase-reports/` for the
+phase-by-phase history. Since then: a settings/admin UI was added for every phase's
+previously API-only features (channels, knowledge base, AI auto-reply, automation rules,
+business hours, saved replies, analytics), and per-tenant AI provider and SMTP configuration
+(any OpenAI-compatible provider or Anthropic, auto-detected from a pasted API key; a business's
+own mail server) — both encrypted at rest, both optional with a working platform default, both
+with a "test connection" check before saving. See [`docs/decisions/ADR-0027-dynamic-tenant-configuration.md`](docs/decisions/ADR-0027-dynamic-tenant-configuration.md).

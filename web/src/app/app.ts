@@ -1,12 +1,13 @@
 import { Component, inject } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 import { ThemeService } from './core/services/theme.service';
 import { ToastHostComponent } from './shared/toast-host/toast-host';
+import { NotificationBellComponent } from './shared/notification-bell/notification-bell';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ToastHostComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastHostComponent, NotificationBellComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

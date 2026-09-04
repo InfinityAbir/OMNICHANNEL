@@ -9,6 +9,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { RealtimeService } from '../../../core/services/realtime.service';
 import { AiService } from '../../../core/services/ai.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { AutomationService } from '../../../core/services/automation.service';
 import {
   ConversationDetailResponse,
   ConversationPriority,
@@ -19,6 +20,7 @@ import {
   NoteResponse,
   TagResponse,
 } from '../../../core/models/conversation.models';
+import { SavedReplyResponse } from '../../../core/models/automation.models';
 import { SkeletonComponent } from '../../../shared/skeleton/skeleton';
 import { EmptyStateComponent } from '../../../shared/empty-state/empty-state';
 import { ChannelIconComponent } from '../../../shared/channel-icon/channel-icon';
@@ -33,6 +35,7 @@ const STATUSES: ConversationStatus[] = [
   'Closed',
 ];
 const PRIORITIES: ConversationPriority[] = ['Low', 'Normal', 'High', 'Urgent'];
+const AI_MODES = ['Disabled', 'SuggestOnly', 'AutoReply', 'AutoReplyWithEscalation'];
 
 @Component({
   selector: 'app-conversation-detail',
@@ -48,11 +51,13 @@ export class ConversationDetailComponent {
   private readonly realtime = inject(RealtimeService);
   private readonly ai = inject(AiService);
   private readonly toast = inject(ToastService);
+  private readonly automation = inject(AutomationService);
 
   readonly id = input.required<string>();
   readonly changed = output<void>();
 
   readonly statuses = STATUSES;
+  readonly aiModes = AI_MODES;
   readonly priorities = PRIORITIES;
 
   readonly detail = signal<ConversationDetailResponse | null>(null);
@@ -84,7 +89,15 @@ export class ConversationDetailComponent {
   readonly newTagName = signal('');
   readonly currentUserId = this.auth.currentUser()?.userId ?? null;
 
+  readonly savedReplies = signal<SavedReplyResponse[]>([]);
+  readonly changingAiMode = signal(false);
+
   constructor() {
+    this.automation.listSavedReplies().subscribe({
+      next: (replies) => this.savedReplies.set(replies),
+      error: () => {}, // a saved-replies load failure shouldn't block the conversation view
+    });
+
     effect(() => {
       const conversationId = this.id();
       this.loadDetail(conversationId);
@@ -254,6 +267,27 @@ export class ConversationDetailComponent {
       next: () => this.refreshAfterMutation(),
       error: (err) => this.toast.showError(err, 'Could not change the conversation priority.'),
     });
+  }
+
+  changeAiMode(aiMode: string): void {
+    this.changingAiMode.set(true);
+    this.ai.setConversationAiMode(this.id(), aiMode).subscribe({
+      next: () => {
+        this.changingAiMode.set(false);
+        this.refreshAfterMutation();
+      },
+      error: (err) => {
+        this.changingAiMode.set(false);
+        this.toast.showError(err, 'Could not change the AI mode.');
+      },
+    });
+  }
+
+  insertSavedReplyById(id: string): void {
+    const reply = this.savedReplies().find((r) => r.id === id);
+    if (!reply) return;
+    const current = this.composerText();
+    this.composerText.set(current ? `${current}\n${reply.text}` : reply.text);
   }
 
   addExistingTag(name: string): void {

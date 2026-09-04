@@ -1,0 +1,108 @@
+<div class="settings-screen">
+  <div class="toolbar">
+    <div>
+      <h2>Automation Rules</h2>
+      <p class="subtitle">When an inbound message contains a keyword, apply a tag, set a priority, or escalate.</p>
+    </div>
+    <button type="button" class="btn-primary" (click)="openCreate()">+ New rule</button>
+  </div>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="50%" />
+    </div>
+  } @else if (rules().length === 0) {
+    <app-empty-state title="No automation rules yet" message="Create one to auto-tag, prioritize, or escalate matching conversations." />
+  } @else {
+    <div class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Keyword</th>
+            <th>Actions</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rule of rules(); track rule.id) {
+            <tr>
+              <td>{{ rule.name }}</td>
+              <td><code>{{ rule.keyword }}</code></td>
+              <td>
+                @if (rule.applyTagName) {
+                  <span class="badge">Tag: {{ rule.applyTagName }}</span>
+                }
+                @if (rule.setPriority) {
+                  <span class="badge">Priority: {{ rule.setPriority }}</span>
+                }
+                @if (rule.escalate) {
+                  <span class="badge">Escalate</span>
+                }
+              </td>
+              <td>
+                <span class="badge" [class.badge-on]="rule.enabled">{{ rule.enabled ? 'Enabled' : 'Disabled' }}</span>
+              </td>
+              <td class="row-actions">
+                <button type="button" class="btn-secondary" (click)="toggleEnabled(rule)">
+                  {{ rule.enabled ? 'Disable' : 'Enable' }}
+                </button>
+                <button type="button" class="btn-danger" (click)="deleteRule(rule)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (showForm()) {
+    <div class="modal-backdrop" (click)="closeForm()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>New automation rule</h2>
+
+        <div class="field">
+          <label for="rule-name">Name (optional)</label>
+          <input id="rule-name" type="text" [ngModel]="nameDraft()" (ngModelChange)="nameDraft.set($event)" />
+        </div>
+
+        <div class="field">
+          <label for="rule-keyword">Trigger keyword</label>
+          <span class="hint">Matches this text anywhere in an inbound customer message, case-insensitive.</span>
+          <input id="rule-keyword" type="text" [ngModel]="keywordDraft()" (ngModelChange)="keywordDraft.set($event)" />
+        </div>
+
+        <div class="field">
+          <label for="rule-tag">Apply tag (optional)</label>
+          <input id="rule-tag" type="text" [ngModel]="tagDraft()" (ngModelChange)="tagDraft.set($event)" />
+        </div>
+
+        <div class="field">
+          <label for="rule-priority">Set priority (optional)</label>
+          <select id="rule-priority" [ngModel]="priorityDraft()" (ngModelChange)="priorityDraft.set($event)">
+            @for (p of priorities; track p) {
+              <option [value]="p">{{ p || '— no change —' }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="checkbox-field">
+          <input id="rule-escalate" type="checkbox" [ngModel]="escalateDraft()" (ngModelChange)="escalateDraft.set($event)" />
+          <label for="rule-escalate">Escalate the conversation</label>
+        </div>
+
+        @if (!hasAction) {
+          <p class="hint">Choose at least one action (tag, priority, or escalate).</p>
+        }
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+          <button type="button" class="btn-primary" [disabled]="saving() || !keywordDraft().trim() || !hasAction" (click)="create()">
+            {{ saving() ? 'Creating…' : 'Create rule' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

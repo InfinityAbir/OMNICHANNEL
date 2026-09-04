@@ -31,6 +31,19 @@
           }
         </select>
 
+        <label class="visually-hidden" for="ai-mode-select">AI mode</label>
+        <select
+          id="ai-mode-select"
+          [ngModel]="detail()!.aiMode"
+          (ngModelChange)="changeAiMode($event)"
+          [disabled]="changingAiMode()"
+          title="Controls whether the AI suggests replies, auto-replies, or does nothing for this conversation"
+        >
+          @for (mode of aiModes; track mode) {
+            <option [value]="mode">AI: {{ mode }}</option>
+          }
+        </select>
+
         @if (detail()!.assignedUserId) {
           <button type="button" class="btn-secondary" (click)="unassign()">Unassign</button>
         } @else {
@@ -109,6 +122,20 @@
           name="composerText"
           (keydown.enter)="onComposerKeydown($event)"
         ></textarea>
+        @if (savedReplies().length > 0) {
+          <label class="visually-hidden" for="saved-reply-select">Insert saved reply</label>
+          <select
+            id="saved-reply-select"
+            class="saved-reply-select"
+            title="Insert a saved reply"
+            (change)="insertSavedReplyById($any($event.target).value); $any($event.target).value = ''"
+          >
+            <option value="">↳ Insert…</option>
+            @for (reply of savedReplies(); track reply.id) {
+              <option [value]="reply.id">{{ reply.title }}</option>
+            }
+          </select>
+        }
         <button
           type="button"
           class="btn-secondary"

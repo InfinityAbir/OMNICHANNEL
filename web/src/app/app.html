@@ -3,8 +3,11 @@
     <header class="top-nav">
       <span class="brand">Omnichannel</span>
       <div class="nav-right">
+        <a routerLink="/inbox" routerLinkActive="active" class="nav-link">Inbox</a>
+        <a routerLink="/settings" routerLinkActive="active" class="nav-link">Settings</a>
         <span class="tenant-name">{{ auth.currentUser()?.tenantName }}</span>
         <span class="user-name">{{ auth.currentUser()?.displayName }}</span>
+        <app-notification-bell />
         <button
           type="button"
           class="theme-toggle"

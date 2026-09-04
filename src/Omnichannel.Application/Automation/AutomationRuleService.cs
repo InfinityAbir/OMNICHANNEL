@@ -159,7 +159,7 @@ public sealed class AutomationRuleService(
             db.Notifications.Add(notification);
 
             await emailSender.SendConversationEscalatedAsync(
-                recipient.Email, recipient.DisplayName, tenantName, conversation.Id, ruleName, cancellationToken);
+                tenantId, recipient.Email, recipient.DisplayName, tenantName, conversation.Id, ruleName, cancellationToken);
         }
     }
 }

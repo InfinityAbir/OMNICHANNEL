@@ -6,9 +6,11 @@ using Omnichannel.Domain.Automation;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
+using Omnichannel.Domain.Email;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Knowledge;
 using Omnichannel.Domain.Notifications;
+using Omnichannel.Domain.Security;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
 
@@ -66,6 +68,12 @@ public interface IAppDbContext
     DbSet<SavedReply> SavedReplies { get; }
 
     DbSet<Notification> Notifications { get; }
+
+    DbSet<TenantSecret> TenantSecrets { get; }
+
+    DbSet<TenantAiProviderSettings> TenantAiProviderSettings { get; }
+
+    DbSet<TenantEmailSettings> TenantEmailSettings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 

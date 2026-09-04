@@ -66,6 +66,28 @@ internal static class EmailTemplates
         return (subject, html, plainText);
     }
 
+    public static (string Subject, string Html, string PlainText) TestEmail(string displayName, bool isTenantSpecific)
+    {
+        const string subject = "Omnichannel SMTP test";
+        var name = WebUtility.HtmlEncode(displayName);
+        var sourceNote = isTenantSpecific ? "your own configured mail server" : "the platform's default mail server";
+
+        var html = SimpleLayout(
+            preheader: "This confirms your SMTP settings are working.",
+            heading: "SMTP test successful",
+            bodyHtml: $"""
+                <p style="margin:0 0 16px;">Hi {name},</p>
+                <p style="margin:0;">
+                    This test email was sent through {WebUtility.HtmlEncode(sourceNote)}. If you received it, your
+                    email configuration is working correctly.
+                </p>
+                """);
+
+        var plainText = $"Hi {displayName},\n\nThis test email was sent through {sourceNote}. If you received it, your email configuration is working correctly.";
+
+        return (subject, html, plainText);
+    }
+
     public static (string Subject, string Html, string PlainText) ConversationEscalated(
         string displayName, string tenantName, Guid conversationId, string ruleName)
     {

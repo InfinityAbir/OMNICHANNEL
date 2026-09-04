@@ -161,6 +161,37 @@ namespace Omnichannel.Infrastructure.Persistence.Migrations
                     b.ToTable("ai_suggestions", (string)null);
                 });
 
+            modelBuilder.Entity("Omnichannel.Domain.Ai.TenantAiProviderSettings", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BaseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ProviderKind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("tenant_ai_provider_settings", (string)null);
+                });
+
             modelBuilder.Entity("Omnichannel.Domain.Audit.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -702,6 +733,42 @@ namespace Omnichannel.Infrastructure.Persistence.Migrations
                     b.ToTable("tags", (string)null);
                 });
 
+            modelBuilder.Entity("Omnichannel.Domain.Email.TenantEmailSettings", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FromAddress")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("FromName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("tenant_email_settings", (string)null);
+                });
+
             modelBuilder.Entity("Omnichannel.Domain.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -850,6 +917,38 @@ namespace Omnichannel.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "UserId", "Read", "CreatedAt");
 
                     b.ToTable("notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Omnichannel.Domain.Security.TenantSecret", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EncryptedValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Purpose")
+                        .IsUnique();
+
+                    b.ToTable("tenant_secrets", (string)null);
                 });
 
             modelBuilder.Entity("Omnichannel.Domain.Tenancy.Tenant", b =>

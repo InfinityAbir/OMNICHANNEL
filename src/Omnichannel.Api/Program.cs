@@ -331,6 +331,7 @@ app.MapKnowledgeEndpoints();
 app.MapAutomationEndpoints();
 app.MapNotificationEndpoints();
 app.MapAnalyticsEndpoints();
+app.MapEmailSettingsEndpoints();
 
 app.MapHub<InboxHub>("/hubs/inbox");
 app.MapHub<WidgetHub>("/hubs/widget").RequireCors("WidgetEmbed");

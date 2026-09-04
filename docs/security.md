@@ -3,6 +3,57 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 16 (Dynamic Tenant Configuration — AI Provider + SMTP)
+
+Not a PRD-numbered phase — a post-launch feature the user asked for directly: per-tenant AI
+provider and SMTP configuration, both encrypted at rest, both optional with a working platform
+default. Full design reasoning in `docs/decisions/ADR-0027-dynamic-tenant-configuration.md`.
+Security-relevant points from that review:
+
+- **Secrets never held in plaintext outside the request that needs them.** `TenantSecret`
+  generalizes `ChannelCredential`'s (ADR-0016) Data Protection API encryption-at-rest to any
+  per-tenant secret keyed by a `(TenantId, Purpose)` pair. `GET` endpoints for both AI provider
+  and email settings return only `hasApiKey`/`hasPassword` booleans — the encrypted value, and
+  any decrypted plaintext, never appears in a response body, a log line, or a test fixture (the
+  test suite uses obviously-fake marker strings like `"fake-test-key"`/`"fake-app-password"`,
+  never anything resembling a real credential).
+- **Regression test added**: `TenantSecretsSecurityTests.TenantSecrets_StoredEncrypted_
+  NeverPlaintextInDatabase` asserts a known plaintext marker never appears verbatim in the
+  `tenant_secrets.encrypted_value` column after a save — not just "it's encrypted in principle."
+- **Tenant isolation re-verified for the new tables**, same pattern as every prior phase's own
+  cross-tenant test: tenant B's `GET` on AI provider settings / email settings after tenant A
+  configures theirs returns no trace of tenant A's base URL, model, or `hasApiKey`/`hasPassword`
+  state (`TenantSecretsSecurityTests`). `AiProviderResolver`, `SmtpEmailSender.ResolveConfigAsync`,
+  and `DataProtectionTenantSecretStore` all use `IgnoreQueryFilters()` + an explicit `tenantId`
+  parameter (the same documented exception pattern as ADR-0016/ADR-0022, required because these
+  paths run from unauthenticated contexts — registration, password reset, webhook-triggered
+  auto-reply — with no ambient tenant session to filter by).
+- **Permission gating verified, not assumed**: `ai.read`/`tenant.read` (which the Agent role has)
+  can view configuration state; only `ai.configure`/`tenant.update` (which Agent does not have)
+  can write, clear, or test it. `TenantSecretsSecurityTests.AgentRole_CanReadButCannotWrite*`
+  exercises this directly — a plain read-permission role gets 200 on `GET`, 403 on `PUT`/`DELETE`/
+  `POST .../test`.
+- **The "test connection" endpoints are self-directed, not third-party messaging.** The AI test
+  sends one minimal completion request to the tenant's own resolved provider (no customer data
+  involved). The email test resolves the *calling user's own* email/display name server-side
+  (`ITenantContext.UserId` → `UserProfiles`) and sends to that address only — a user can never
+  direct a test email at an arbitrary third party through this endpoint.
+- **`AnthropicProvider` is unverified against a real Anthropic API** — no key was available in
+  this environment. Its parsing logic is exercised by stubbed-response tests
+  (`AnthropicProviderTests`) built from Anthropic's public documentation, not a captured real
+  response the way `GroqAiProviderTests`/`OpenAiCompatibleProviderTests` are. Flagged in the
+  class's own doc comment and in ADR-0027; verify against a real key before depending on this
+  provider in production.
+- **One incidental real SMTP send** happened during manual browser verification of the
+  platform-default fallback path (curl request to a fake, nonexistent recipient address —
+  harmless, no real person received anything). Disclosed to the user at the time. No automated
+  test exercises the `/email-settings/test` endpoint for this reason
+  (`EmailSettingsEndpointsTests`'s own doc comment records why).
+- Full backend suite green after this work: 274/274 (84 unit + 53 integration + 36 security +
+  101 API), including 53 new test methods added specifically for this feature (domain validation,
+  provider-response parsing for both new AI provider types, key-prefix detection heuristics,
+  endpoint CRUD, tenant isolation, permission gating).
+
 ## Phase 15 (Production Hardening)
 
 Full PRD §74/§75 review — see `docs/phase-reports/phase-15.md` for the complete account,

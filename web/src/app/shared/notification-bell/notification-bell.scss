@@ -1,0 +1,130 @@
+.bell-wrapper {
+  position: relative;
+}
+
+.bell-btn {
+  // Deliberately hardcoded, not the semantic --text/--surface tokens: this component always sits
+  // in .top-nav, which is itself a fixed dark bar regardless of theme (same reasoning as
+  // .theme-toggle right next to it) — using the semantic tokens here would make the bell invisible
+  // in light mode.
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--gray-700);
+  background: transparent;
+  color: var(--gray-0);
+  cursor: pointer;
+}
+
+.bell-btn:hover {
+  background: var(--gray-800);
+}
+
+.bell-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.badge-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 20rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.dropdown-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.dropdown-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.dropdown-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: var(--surface-muted);
+}
+
+.notification-item.unread {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.item-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.item-body {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.item-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}

@@ -1,0 +1,47 @@
+<div class="settings-screen">
+  <h2>Business Hours</h2>
+  <p class="subtitle">
+    Your general operating hours and holidays — used for escalation rules and notifications. Independent from the
+    AI-specific hours under "AI Auto-Reply."
+  </p>
+
+  @if (loading()) {
+    <div class="card">
+      <app-skeleton height="1.2rem" width="40%" />
+      <br />
+      <app-skeleton height="2.2rem" />
+    </div>
+  } @else {
+    <div class="card">
+      <h3>Weekly schedule</h3>
+      <app-business-hours-editor [schedule]="schedule()" (scheduleChange)="schedule.set($event)" />
+    </div>
+
+    <div class="card">
+      <h3>Holidays</h3>
+      <p class="hint" style="margin-bottom: 1rem;">Closed all day on these dates, regardless of the weekly schedule.</p>
+
+      @if (holidays().length > 0) {
+        <div class="holiday-list">
+          @for (date of holidays(); track date) {
+            <span class="badge holiday-chip">
+              {{ date }}
+              <button type="button" class="icon-btn" (click)="removeHoliday(date)" aria-label="Remove holiday">×</button>
+            </span>
+          }
+        </div>
+      }
+
+      <div class="field" style="margin-top: 0.75rem;">
+        <div class="row-actions">
+          <input type="date" [ngModel]="newHolidayDraft()" (ngModelChange)="newHolidayDraft.set($event)" />
+          <button type="button" class="btn-secondary" [disabled]="!newHolidayDraft()" (click)="addHoliday()">Add holiday</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Saving…' : 'Save business hours' }}
+    </button>
+  }
+</div>

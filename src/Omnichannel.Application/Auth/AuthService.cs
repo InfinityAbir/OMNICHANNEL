@@ -4,6 +4,7 @@ using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Automation;
 using Omnichannel.Domain.Channels;
+using Omnichannel.Domain.Email;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
@@ -67,19 +68,30 @@ public sealed class AuthService(
         // AI-specific config above (ADR-0023).
         var businessHours = TenantBusinessHours.CreateDefault(tenant.Id, now);
 
+        // Per-tenant AI provider (Phase 16) — defaults to the same Groq configuration the
+        // platform itself uses, so AI features work immediately; a tenant can override with their
+        // own provider/key any time (ADR-0027).
+        var aiProviderSettings = TenantAiProviderSettings.CreateDefault(tenant.Id, "https://api.groq.com/openai/v1", "openai/gpt-oss-120b", now);
+
+        // Per-tenant SMTP (Phase 16) — unconfigured by default; falls back to the platform's own
+        // SMTP until the tenant sets their own (ADR-0027).
+        var emailSettings = TenantEmailSettings.CreateDefault(tenant.Id, now);
+
         db.UserProfiles.Add(domainUser);
         db.Tenants.Add(tenant);
         db.Memberships.Add(membership);
         db.ChannelAccounts.Add(manualChannel);
         db.ChannelAccounts.Add(websiteChatChannel);
         db.WidgetSettings.Add(widgetSettings);
+        db.TenantAiProviderSettings.Add(aiProviderSettings);
+        db.TenantEmailSettings.Add(emailSettings);
         db.AiAutoReplySettings.Add(autoReplySettings);
         db.TenantBusinessHours.Add(businessHours);
         await db.SaveChangesAsync(cancellationToken);
 
         var confirmationToken = await identity.GenerateEmailConfirmationTokenAsync(domainUser.Id, cancellationToken);
         var confirmationLink = $"{emailConfirmationLinkBase}?userId={domainUser.Id}&token={Uri.EscapeDataString(confirmationToken)}";
-        await emailSender.SendEmailConfirmationAsync(domainUser.Email, domainUser.DisplayName, confirmationLink, cancellationToken);
+        await emailSender.SendEmailConfirmationAsync(tenant.Id, domainUser.Email, domainUser.DisplayName, confirmationLink, cancellationToken);
 
         var tokens = await IssueTokensAsync(domainUser.Id, domainUser.Email, tenant.Id, ownerRole.Permissions, now, cancellationToken);
         return new RegisterResult(RegisterOutcome.Success, [], tokens);
@@ -157,9 +169,13 @@ public sealed class AuthService(
         }
 
         var domainUser = await db.UserProfiles.SingleAsync(u => u.Id == userId, cancellationToken);
+        var tenantId = await db.Memberships
+            .Where(m => m.UserId == userId && m.Status == MembershipStatus.Active)
+            .Select(m => m.TenantId)
+            .FirstOrDefaultAsync(cancellationToken);
         var token = await identity.GeneratePasswordResetTokenAsync(domainUser.Id, cancellationToken);
         var resetLink = $"{resetLinkBase}?userId={domainUser.Id}&token={Uri.EscapeDataString(token)}";
-        await emailSender.SendPasswordResetAsync(domainUser.Email, domainUser.DisplayName, resetLink, cancellationToken);
+        await emailSender.SendPasswordResetAsync(tenantId, domainUser.Email, domainUser.DisplayName, resetLink, cancellationToken);
     }
 
     public async Task<bool> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken)

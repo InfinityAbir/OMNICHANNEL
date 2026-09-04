@@ -1,0 +1,34 @@
+<div class="hours-editor">
+  @for (day of days; track day) {
+    <div class="day-row">
+      <label class="day-toggle">
+        <input type="checkbox" [checked]="isOpen(day)" (change)="toggleDay(day, $any($event.target).checked)" />
+        {{ day }}
+      </label>
+
+      @if (isOpen(day)) {
+        <div class="windows">
+          @for (window of windowsFor(day); track $index) {
+            <div class="window-row">
+              <input
+                type="time"
+                [ngModel]="window.start"
+                (ngModelChange)="updateWindow(day, $index, 'start', $event)"
+              />
+              <span>to</span>
+              <input
+                type="time"
+                [ngModel]="window.end"
+                (ngModelChange)="updateWindow(day, $index, 'end', $event)"
+              />
+              <button type="button" class="icon-btn" (click)="removeWindow(day, $index)" aria-label="Remove window">×</button>
+            </div>
+          }
+          <button type="button" class="add-window-btn" (click)="addWindow(day)">+ Add window</button>
+        </div>
+      } @else {
+        <span class="closed-label">Closed</span>
+      }
+    </div>
+  }
+</div>

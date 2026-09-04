@@ -10,6 +10,7 @@ using Omnichannel.Infrastructure.Identity;
 using Omnichannel.Infrastructure.Knowledge;
 using Omnichannel.Infrastructure.Persistence;
 using Omnichannel.Infrastructure.Realtime;
+using Omnichannel.Infrastructure.Security;
 using Pgvector.EntityFrameworkCore;
 using Omnichannel.Infrastructure.Widget;
 
@@ -64,6 +65,7 @@ public static class DependencyInjection
         services.AddSingleton<IAccessTokenGenerator, JwtAccessTokenGenerator>();
         services.AddSingleton<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<ITenantSecretStore, DataProtectionTenantSecretStore>();
 
         // Scoped, not Singleton — a future adapter may itself be Scoped (e.g. needs a per-request
         // DbContext), and capturing it into a Singleton registry would be a captive dependency.
@@ -79,6 +81,9 @@ public static class DependencyInjection
         services.AddSignalRNotifier();
 
         services.AddHttpClient<IAiProvider, GroqAiProvider>();
+        services.AddHttpClient("tenant-ai-provider");
+        services.AddScoped<IAiProviderResolver, AiProviderResolver>();
+        services.AddScoped<IAiProviderDetector, AiProviderDetector>();
         services.AddScoped<IAiUsageLimiter, AiUsageLimiter>();
 
         // No embeddings-capable API key was available this phase (Groq's own catalog has none —
