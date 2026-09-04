@@ -23,6 +23,7 @@ export class LoginComponent {
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly passwordVisible = signal(false);
 
   async submit(): Promise<void> {
     if (this.form.invalid || this.submitting()) {

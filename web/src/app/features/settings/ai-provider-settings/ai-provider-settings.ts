@@ -21,6 +21,7 @@ export class AiProviderSettingsComponent implements OnInit {
   readonly saving = signal(false);
   readonly detecting = signal(false);
   readonly testing = signal(false);
+  readonly apiKeyVisible = signal(false);
 
   readonly providerKind = signal<AiProviderKind>('OpenAiCompatible');
   readonly baseUrl = signal('');

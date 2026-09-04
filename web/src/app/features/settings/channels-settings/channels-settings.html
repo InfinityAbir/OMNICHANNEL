@@ -38,13 +38,34 @@
         <div class="field" style="margin-top: 1.25rem;">
           <label [for]="type + '-credential'">Access token / secret</label>
           <span class="hint">Stored encrypted. Never shown again after saving.</span>
-          <input
-            [id]="type + '-credential'"
-            type="password"
-            [ngModel]="credentialDrafts()[type] ?? ''"
-            (ngModelChange)="updateCredentialDraft(type, $event)"
-            placeholder="Paste the provider access token"
-          />
+          <div class="password-field">
+            <input
+              [id]="type + '-credential'"
+              [type]="credentialVisible()[type] ? 'text' : 'password'"
+              [ngModel]="credentialDrafts()[type] ?? ''"
+              (ngModelChange)="updateCredentialDraft(type, $event)"
+              placeholder="Paste the provider access token"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="toggleCredentialVisible(type)"
+              [attr.aria-label]="credentialVisible()[type] ? 'Hide value' : 'Show value'"
+              [attr.aria-pressed]="!!credentialVisible()[type]"
+            >
+              @if (credentialVisible()[type]) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.5 18.5 0 0 1 4.22-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              }
+            </button>
+          </div>
         </div>
         <div class="row-actions">
           <button type="button" class="btn-secondary" [disabled]="saving() === type" (click)="saveCredential(type)">
@@ -81,6 +102,9 @@
           <label for="embed-snippet">Embed snippet</label>
           <span class="hint">Paste this on any allowed origin to add the chat widget.</span>
           <textarea id="embed-snippet" rows="3" readonly [ngModel]="widget.embedSnippet"></textarea>
+          <button type="button" class="btn-secondary" style="align-self: flex-start; margin-top: 0.4rem;" (click)="copyEmbedSnippet(widget.embedSnippet)">
+            Copy snippet
+          </button>
         </div>
       }
     </div>

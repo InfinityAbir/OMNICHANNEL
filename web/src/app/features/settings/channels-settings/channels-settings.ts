@@ -21,6 +21,7 @@ export class ChannelsSettingsComponent implements OnInit {
   readonly accounts = signal<Partial<Record<ChannelTypeName, ChannelAccountAdminResponse>>>({});
   readonly externalAccountIdDrafts = signal<Partial<Record<ChannelTypeName, string>>>({});
   readonly credentialDrafts = signal<Partial<Record<ChannelTypeName, string>>>({});
+  readonly credentialVisible = signal<Partial<Record<ChannelTypeName, boolean>>>({});
   readonly saving = signal<ChannelTypeName | null>(null);
 
   readonly widgetSettings = signal<WidgetSettingsResponse | null>(null);
@@ -120,6 +121,19 @@ export class ChannelsSettingsComponent implements OnInit {
 
   updateCredentialDraft(type: ChannelTypeName, value: string): void {
     this.credentialDrafts.update((current) => ({ ...current, [type]: value }));
+  }
+
+  toggleCredentialVisible(type: ChannelTypeName): void {
+    this.credentialVisible.update((current) => ({ ...current, [type]: !current[type] }));
+  }
+
+  async copyEmbedSnippet(snippet: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(snippet);
+      this.toast.show('Embed snippet copied to clipboard.', 'success');
+    } catch {
+      this.toast.show('Could not copy automatically — select the text and copy it manually.', 'error');
+    }
   }
 
   saveWidgetOrigins(): void {

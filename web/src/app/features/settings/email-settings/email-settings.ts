@@ -21,6 +21,7 @@ export class EmailSettingsComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly testing = signal(false);
+  readonly passwordVisible = signal(false);
 
   readonly host = signal('');
   readonly port = signal(587);
