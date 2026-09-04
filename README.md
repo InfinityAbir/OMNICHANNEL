@@ -2,6 +2,8 @@
 
 **One inbox for every customer conversation, with an AI assistant that helps when your team can't.**
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Visit_Site-2ea44f?style=for-the-badge&logo=googlechrome&logoColor=white)](https://omnichannel-1t6b.onrender.com/login)
+
 ## What this is
 
 Omnichannel is a SaaS platform for small and medium-sized businesses that unifies customer
