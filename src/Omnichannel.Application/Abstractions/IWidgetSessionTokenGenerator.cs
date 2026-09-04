@@ -7,5 +7,5 @@ namespace Omnichannel.Application.Abstractions;
 /// </summary>
 public interface IWidgetSessionTokenGenerator
 {
-    string Generate(Guid tenantId, Guid visitorId, Guid sessionId, Guid conversationId, DateTimeOffset now);
+    Task<string> GenerateAsync(Guid tenantId, Guid visitorId, Guid sessionId, Guid conversationId, DateTimeOffset now, CancellationToken cancellationToken);
 }

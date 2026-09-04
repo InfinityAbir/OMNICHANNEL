@@ -43,6 +43,22 @@ Push to `main` (or whatever branch the service is connected to) — Render rebui
 automatically. `RunMigrationsOnStartup=true` means any new EF Core migration in that push is
 applied on startup, same as the first deploy.
 
+### Rotating the JWT signing key
+
+The signing key ring lives in Postgres (ADR-0029), not `render.yaml`'s `Jwt__SigningKey` — that
+value is only ever used once, to seed the very first key on a brand-new database. To rotate (e.g.
+after a suspected token compromise, or on a periodic policy):
+
+1. Open a shell into the running `omnichannel` service (Render dashboard → the service → **Shell**).
+2. Run: `dotnet Omnichannel.Api.dll --rotate-jwt-key`
+3. It prints the new/retired key ids and how long the old key stays valid for (default: 1 hour —
+   set `Jwt:KeyRotationOverlapHours` to change it). No redeploy, no restart — every running
+   instance picks up the new key ring within ~60 seconds (`JwtSigningKeyRefreshService`'s poll
+   interval), and already-issued access tokens keep working until the overlap window ends.
+
+This deliberately has no HTTP endpoint — see ADR-0029 for why (no cross-tenant admin role exists
+in this app, so rotation stays an operator-only, shell-level action).
+
 ### Why a single combined service (not a separate static site)
 
 The Angular frontend calls the API via relative `/api/...` paths (see `web/proxy.conf.json` for

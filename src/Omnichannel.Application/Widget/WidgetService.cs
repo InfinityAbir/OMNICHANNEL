@@ -92,8 +92,8 @@ public sealed class WidgetService(
         return conversation.Id;
     }
 
-    public string IssueToken(Guid tenantId, Guid visitorId, Guid conversationId, DateTimeOffset now)
-        => tokenGenerator.Generate(tenantId, visitorId, Guid.NewGuid(), conversationId, now);
+    public Task<string> IssueTokenAsync(Guid tenantId, Guid visitorId, Guid conversationId, DateTimeOffset now, CancellationToken cancellationToken)
+        => tokenGenerator.GenerateAsync(tenantId, visitorId, Guid.NewGuid(), conversationId, now, cancellationToken);
 
     public async Task<(bool Ok, Message? Message)> SendInboundAsync(
         Guid tenantId, Guid conversationId, Guid channelAccountId, string text, CancellationToken cancellationToken)

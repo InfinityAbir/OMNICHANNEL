@@ -65,10 +65,24 @@ public static class DependencyInjection
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IRefreshTokenStore, RefreshTokenStore>();
-        services.AddSingleton<IAccessTokenGenerator, JwtAccessTokenGenerator>();
-        services.AddSingleton<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
+        // Scoped, not Singleton (ADR-0029 changed this): both now take IJwtSigningKeyStore
+        // (Scoped, it uses a scoped AppDbContext) as a fallback for the rare case
+        // JwtSigningKeyCache.Primary isn't warm yet — a Singleton directly depending on a Scoped
+        // service is a captive-dependency bug the DI container's own validation catches in
+        // Development (a disposed DbContext reused forever from the first resolution onward).
+        services.AddScoped<IAccessTokenGenerator, JwtAccessTokenGenerator>();
+        services.AddScoped<IWidgetSessionTokenGenerator, WidgetSessionTokenGenerator>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<ITenantSecretStore, DataProtectionTenantSecretStore>();
+
+        // JWT signing key ring (ADR-0029) — GetPrimaryAsync/RotateAsync go through the database
+        // directly (low-frequency: token issuance and manual rotation); validation instead reads
+        // JwtSigningKeyCache, kept warm by JwtSigningKeyRefreshService so the per-request
+        // IssuerSigningKeyResolver (no DI/async access) never blocks on a database read.
+        services.AddScoped<IJwtSigningKeyStore, DataProtectionJwtSigningKeyStore>();
+        services.AddSingleton<JwtSigningKeyCache>();
+        services.AddSingleton<JwtSigningKeyRefreshService>();
+        services.AddHostedService(sp => sp.GetRequiredService<JwtSigningKeyRefreshService>());
 
         // Data Protection's key ring persisted in Postgres, not the container's local filesystem
         // — required on any platform with an ephemeral filesystem (Render included), since the

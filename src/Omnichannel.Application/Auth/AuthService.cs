@@ -141,7 +141,7 @@ public sealed class AuthService(
         }
 
         var newRawRefreshToken = await refreshTokens.RotateAsync(record.Id, context.UserId, now, cancellationToken);
-        var accessToken = accessTokenGenerator.Generate(context.UserId, context.Email, context.TenantId, context.Permissions, now);
+        var accessToken = await accessTokenGenerator.GenerateAsync(context.UserId, context.Email, context.TenantId, context.Permissions, now, cancellationToken);
 
         return new RefreshResult(RefreshOutcome.Success, new AuthTokens(accessToken.Token, accessToken.ExpiresAt, newRawRefreshToken));
     }
@@ -201,7 +201,7 @@ public sealed class AuthService(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var accessToken = accessTokenGenerator.Generate(userId, email, tenantId, permissions, now);
+        var accessToken = await accessTokenGenerator.GenerateAsync(userId, email, tenantId, permissions, now, cancellationToken);
         var refreshToken = await refreshTokens.IssueAsync(userId, now, cancellationToken);
         return new AuthTokens(accessToken.Token, accessToken.ExpiresAt, refreshToken);
     }

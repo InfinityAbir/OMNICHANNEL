@@ -3,6 +3,46 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## JWT signing key rotation — 2026-09-04
+
+Closes the last item tracked since Phase 15: "no JWT signing-key rotation overlap mechanism —
+rotating today invalidates every session immediately." Full design in
+`docs/decisions/ADR-0029-jwt-key-rotation.md`. Security-relevant points:
+
+- **Key ring in Postgres, encrypted at rest** (`jwt_signing_keys`, same Data Protection mechanism
+  as `TenantSecret`/`ChannelCredential`) — not a config-file list, so rotation is an operational
+  action against the live system, not a redeploy.
+- **No HTTP endpoint for rotation.** This app has no cross-tenant "platform admin" role — every
+  role is tenant-scoped — so an HTTP endpoint would either need a new admin role invented purely
+  for this (scope creep) or, worse, let a tenant Owner rotate the entire platform's signing key.
+  Rotation is a `dotnet Omnichannel.Api.dll --rotate-jwt-key` command instead, run by an operator
+  with the real deploy's connection string, never starting the HTTP listener.
+- **Exactly one primary key enforced by the database**, not just application logic (a Postgres
+  partial unique index on `IsPrimary`).
+- **A real ordering bug found and fixed during testing, not shipped**: an earlier version had
+  token *signing* read the primary key live from the database on every issuance while
+  *validation* read a slower-to-refresh in-memory cache — a token signed immediately after a
+  rotation could fail to validate against its own very next request, on the very same process,
+  until the cache caught up. Fixed by having both signing and validation read one shared cache
+  snapshot, updated atomically. Caught by genuine end-to-end test failures (not by inspection)
+  when validating the feature under realistic concurrent load, then root-caused and fixed rather
+  than worked around.
+- **A DI captive-dependency bug found the same way**: the two token generators became Scoped
+  (from Singleton) because a Singleton directly depending on the new Scoped
+  `IJwtSigningKeyStore` fallback path is exactly the kind of bug that silently reuses a disposed
+  `DbContext` forever — caught by the .NET DI container's own build-time validation (enabled in
+  Development, not Testing/Production by default) when running the new CLI command locally, before
+  considering the feature shippable, not by the automated test suite (which doesn't validate
+  scopes by default).
+- **Bootstrap uses the same Postgres advisory-lock pattern `RoleSeeder` already established** for
+  the identical class of race (concurrent process startup against a shared database) — a plain
+  check-then-insert reproduced the exact duplicate-key/deadlock failure mode RoleSeeder had
+  already hit and fixed.
+- 281/281 backend tests green, including 3 end-to-end tests proving: a pre-rotation token
+  authenticates within the overlap window; a post-rotation login uses the new key immediately;
+  and a zero-overlap rotation rejects the pre-rotation token immediately (the boundary case
+  proving the overlap window is what keeps tokens alive, not something else).
+
 ## Deployment prep (Render) — 2026-09-04
 
 Not a phase — Render deployment prep, done directly for the user while they were live on the
@@ -119,7 +159,9 @@ review. Summary of what changed and what was verified:
   it is a product decision, not a Phase 15 gap).
 - **Known, tracked gaps** (not silently absent): no automated data-retention/deletion tooling
   (`docs/privacy.md`), no automated backup job in-repo (deferred to the hosting provider's managed
-  backup once one is chosen, `docs/disaster-recovery.md`), no JWT key-rotation overlap mechanism.
+  backup once one is chosen, `docs/disaster-recovery.md`). JWT key-rotation overlap mechanism —
+  resolved 2026-09-04, see this file's own "JWT signing key rotation" section above and
+  ADR-0029.
 
 ## Phase 14 controls (Analytics)
 

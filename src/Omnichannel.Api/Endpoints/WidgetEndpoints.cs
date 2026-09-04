@@ -62,7 +62,7 @@ public static class WidgetEndpoints
 
         var now = DateTimeOffset.UtcNow;
         var contactId = await widget.ResolveContactIdAsync(tenantId, conversationId, cancellationToken);
-        var token = widget.IssueToken(tenantId, contactId, conversationId, now);
+        var token = await widget.IssueTokenAsync(tenantId, contactId, conversationId, now, cancellationToken);
 
         var connectionUrl = $"{http.Request.Scheme}://{http.Request.Host}/hubs/widget";
         return Results.Ok(new WidgetSessionResponse(

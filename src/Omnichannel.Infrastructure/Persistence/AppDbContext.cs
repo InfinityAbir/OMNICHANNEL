@@ -91,6 +91,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     /// the Application layer.</summary>
     public DbSet<DataProtectionKeyRecord> DataProtectionKeys => Set<DataProtectionKeyRecord>();
 
+    /// <summary>Not part of <see cref="IAppDbContext"/> — accessed only through
+    /// <see cref="IJwtSigningKeyStore"/> (ADR-0029), never directly by the Application layer.
+    /// Not <see cref="ITenantOwned"/> — the JWT signing key ring is one app-wide resource shared
+    /// by every tenant's tokens.</summary>
+    public DbSet<JwtSigningKey> JwtSigningKeys => Set<JwtSigningKey>();
+
     public void ClearChangeTracker() => ChangeTracker.Clear();
 
     /// <summary>

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -133,17 +132,13 @@ builder.Services.AddCors(options =>
         policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 });
 
-// ---- Authentication: JWT bearer, signed with the key issued at login/refresh ----
+// ---- Authentication: JWT bearer, signed with the app-wide key ring (ADR-0029) ----
+// The signing key itself is no longer required config — IJwtSigningKeyStore bootstraps one in
+// the database on first use (seeded from the legacy Jwt:SigningKey value if present, otherwise a
+// fresh random key). Validation reads the currently-valid key set from JwtSigningKeyCache
+// (refreshed from the store — see the .Configure<JwtSigningKeyCache> calls below and
+// JwtSigningKeyRefreshService), not a fixed key, so a rotation takes effect without a redeploy.
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtSigningKey = jwtSection["SigningKey"];
-if (string.IsNullOrWhiteSpace(jwtSigningKey))
-{
-    // An empty (not just missing) value previously passed this check (empty string isn't null),
-    // then failed confusingly later — SymmetricSecurityKey rejects a zero-length key only when
-    // JwtBearerOptions is first lazily resolved, i.e. on the first authenticated request, as an
-    // unhandled 500 instead of a clear startup failure. Fail fast here instead.
-    throw new InvalidOperationException("Missing required configuration: Jwt:SigningKey");
-}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -160,7 +155,6 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwtSection["Audience"],
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
         };
@@ -208,7 +202,6 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = widgetSection["Audience"],
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(15),
         };
@@ -226,6 +219,17 @@ builder.Services
             },
         };
     });
+
+// Signature validation reads the live, currently-valid key set from JwtSigningKeyCache (both
+// schemes share the same key ring — see ADR-0029) rather than a fixed key baked in above.
+// IssuerSigningKeyResolver has no DI/async access, so it can't read the database directly; the
+// cache is what JwtSigningKeyRefreshService keeps in sync (registered in AddInfrastructure).
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<Omnichannel.Infrastructure.Security.JwtSigningKeyCache>((options, cache) =>
+        options.TokenValidationParameters.IssuerSigningKeyResolver = (_, _, _, _) => cache.CurrentKeys);
+builder.Services.AddOptions<JwtBearerOptions>("Widget")
+    .Configure<Omnichannel.Infrastructure.Security.JwtSigningKeyCache>((options, cache) =>
+        options.TokenValidationParameters.IssuerSigningKeyResolver = (_, _, _, _) => cache.CurrentKeys);
 
 // ---- Authorization: permission-string policies resolved dynamically (PermissionKeys.*) ----
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
@@ -405,6 +409,30 @@ using (var scope = app.Services.CreateScope())
     }
 
     await RoleSeeder.SeedAsync(db, CancellationToken.None);
+}
+
+// Warms JwtSigningKeyCache synchronously before accepting any request — otherwise the very first
+// requests would race the background refresh service's own first tick and see an empty key set
+// (rejecting every token as unsigned/untrusted rather than failing open or closed predictably).
+await app.Services.GetRequiredService<Omnichannel.Infrastructure.Security.JwtSigningKeyRefreshService>().RefreshAsync(CancellationToken.None);
+
+// Operational command mode (ADR-0029): rotates the JWT signing key ring and exits — never starts
+// Kestrel. Deliberately not an HTTP endpoint: rotation is a platform-wide action affecting every
+// tenant's sessions, not something any tenant role (even Owner) should be able to trigger over
+// the API. Run via `dotnet Omnichannel.Api.dll --rotate-jwt-key` (locally against the prod
+// connection string, or through Render's Shell into the running container) with the same config
+// the live service uses, so it rotates the real key ring. See docs/deployment.md.
+if (args.Contains("--rotate-jwt-key"))
+{
+    using var scope = app.Services.CreateScope();
+    var store = scope.ServiceProvider.GetRequiredService<Omnichannel.Application.Abstractions.IJwtSigningKeyStore>();
+    var overlapHours = builder.Configuration.GetValue("Jwt:KeyRotationOverlapHours", 1.0);
+    var result = await store.RotateAsync(TimeSpan.FromHours(overlapHours), CancellationToken.None);
+    Console.WriteLine(
+        $"JWT signing key rotated. New primary kid={result.NewPrimaryKid}. " +
+        $"Previous key (kid={result.RetiredKid}) remains valid for validating already-issued tokens until {result.RetiredKeyValidUntil:O} " +
+        $"(overlap window: {overlapHours}h, configurable via Jwt:KeyRotationOverlapHours).");
+    return;
 }
 
 app.Run();
