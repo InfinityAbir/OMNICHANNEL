@@ -24,6 +24,27 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ---- Connection string normalization: Render's fromDatabase.connectionString is a libpq-style
+// URI ("postgres://user:pass@host:port/db"), but Npgsql's connection-string builder only accepts
+// keyword=value pairs and throws a low-level, unhelpful parse error on a URI. Converts in place
+// so every other reader of ConnectionStrings:Default (AddInfrastructure, the health check) sees
+// the already-normalized value without knowing this happened. Local dev's own
+// ConnectionStrings__Default (already keyword=value, see .env.example) passes through untouched.
+var rawConnectionString = builder.Configuration.GetConnectionString("Default");
+if (!string.IsNullOrWhiteSpace(rawConnectionString)
+    && (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        || rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+{
+    var uri = new Uri(rawConnectionString);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+    var database = uri.AbsolutePath.TrimStart('/');
+    var port = uri.Port == -1 ? 5432 : uri.Port;
+    builder.Configuration["ConnectionStrings:Default"] =
+        $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password}";
+}
+
 // ---- Logging (Serilog, structured, console sink; OTLP export handled by OpenTelemetry below) ----
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
