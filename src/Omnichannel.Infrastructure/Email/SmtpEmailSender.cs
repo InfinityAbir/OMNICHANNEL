@@ -23,6 +23,13 @@ public sealed partial class SmtpEmailSender(IOptions<SmtpOptions> options, ILogg
         return SendAsync(toEmail, toDisplayName, subject, html, text, cancellationToken);
     }
 
+    public Task SendConversationEscalatedAsync(
+        string toEmail, string toDisplayName, string tenantName, Guid conversationId, string ruleName, CancellationToken cancellationToken)
+    {
+        var (subject, html, text) = EmailTemplates.ConversationEscalated(toDisplayName, tenantName, conversationId, ruleName);
+        return SendAsync(toEmail, toDisplayName, subject, html, text, cancellationToken);
+    }
+
     private async Task SendAsync(string toEmail, string toDisplayName, string subject, string html, string plainText, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.Host))

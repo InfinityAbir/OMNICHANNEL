@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Application.Ai;
 using Omnichannel.Application.Audit;
+using Omnichannel.Application.Automation;
 using Omnichannel.Application.Channels;
 using Omnichannel.Application.Common;
 using Omnichannel.Domain.Channels;
@@ -16,7 +17,8 @@ public sealed class ConversationService(
     TimeProvider timeProvider,
     IRealtimeNotifier realtime,
     ChannelSendService channelSend,
-    AiAutoReplyService autoReply)
+    AiAutoReplyService autoReply,
+    AutomationRuleService automationRules)
 {
     private const int MaxPageSize = 100;
 
@@ -181,6 +183,7 @@ public sealed class ConversationService(
         // auto-reply isn't actually configured.
         if (direction == MessageDirection.Inbound && senderType == MessageSenderType.Customer)
         {
+            await automationRules.EvaluateAsync(tenantContext.TenantId, conversation.Id, text, cancellationToken);
             await autoReply.EvaluateAsync(tenantContext.TenantId, conversation.Id, cancellationToken);
         }
 

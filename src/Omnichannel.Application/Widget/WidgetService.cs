@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Application.Ai;
 using Omnichannel.Application.Audit;
+using Omnichannel.Application.Automation;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
@@ -19,7 +20,8 @@ public sealed class WidgetService(
     AuditService audit,
     IRealtimeNotifier realtime,
     IWidgetSessionTokenGenerator tokenGenerator,
-    AiAutoReplyService autoReply)
+    AiAutoReplyService autoReply,
+    AutomationRuleService automationRules)
 {
     /// <summary>Opens a widget session for an anonymous visitor. Public (pre-auth): resolves the
     /// tenant by its public slug, validates the request Origin against the tenant's allowlist, and
@@ -120,8 +122,9 @@ public sealed class WidgetService(
                 conversation.AiMode, conversation.LastMessageAt, conversation.LastMessagePreview,
                 conversation.AssignedUserId, cancellationToken);
 
-            // AI auto-reply (Phase 12) — a widget visitor message is always genuine inbound
-            // customer content.
+            // AI auto-reply (Phase 12) and automation rules (Phase 13) — a widget visitor
+            // message is always genuine inbound customer content.
+            await automationRules.EvaluateAsync(tenantId, conversation.Id, message.Text, cancellationToken);
             await autoReply.EvaluateAsync(tenantId, conversation.Id, cancellationToken);
 
             return (true, message);

@@ -2,11 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Audit;
 using Omnichannel.Domain.Authorization;
+using Omnichannel.Domain.Automation;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Knowledge;
+using Omnichannel.Domain.Notifications;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
 
@@ -56,6 +58,14 @@ public interface IAppDbContext
     DbSet<KnowledgeDocument> KnowledgeDocuments { get; }
 
     DbSet<KnowledgeChunk> KnowledgeChunks { get; }
+
+    DbSet<TenantBusinessHours> TenantBusinessHours { get; }
+
+    DbSet<AutomationRule> AutomationRules { get; }
+
+    DbSet<SavedReply> SavedReplies { get; }
+
+    DbSet<Notification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 

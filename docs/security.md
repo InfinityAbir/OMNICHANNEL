@@ -3,6 +3,31 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 13 controls (Business Rules + Automation)
+
+- **Rules cannot execute arbitrary code**: `AutomationRule` is a closed set of trigger types
+  (keyword substring match only, no regex/scripting) and actions (apply a named tag, set a fixed
+  `ConversationPriority` enum value, escalate) — entirely data, never code, matching PRD §72's
+  explicit requirement.
+- **Cannot access other tenants**: `AutomationRuleService.EvaluateAsync` takes an explicit
+  `tenantId` and queries via `IgnoreQueryFilters()` + an explicit `TenantId ==` predicate — the
+  same documented exception as `AiAutoReplyService` (ADR-0016/0022), required for the same reason
+  (invoked from an unauthenticated webhook context). Verified:
+  `AutomationSecurityTests.AutomationRules_TenantACannotSeeTenantBsRules`,
+  `SavedReplies_TenantACannotSeeTenantBsReplies`, `Notifications_TenantACannotSeeTenantBsNotifications`.
+- **Cannot bypass authorization**: rule/business-hours configuration requires `tenant.update`
+  (Owner/Admin only — an existing PRD §12 permission key, none invented); saved replies require
+  `conversations.reply` (every Agent+ role) — a deliberately different bar, since saved replies are
+  an agent tool, not tenant-wide configuration. Verified:
+  `AutomationSecurityTests.AgentRole_CannotManageAutomationRulesOrBusinessHours_ButCanManageSavedReplies`.
+- **Cannot send unlimited messages**: automation rules never send a message themselves — their
+  only actions are tagging, prioritizing, and escalating a conversation. Sending remains exclusively
+  the agent-approval path (Suggest mode) or the already-limited `AiAutoReplyService` (Phase 12,
+  its own daily cap); this phase adds no new send path at all.
+- **Cannot disable safety controls**: no automation-rule action can change `ConversationAiMode`,
+  `AiAutoReplySettings`, or any other Phase 12 safety gate — the action set (tag/priority/escalate)
+  has no path to any AI configuration.
+
 ## Phase 12 controls (AI Auto-Reply)
 
 - **Unauthorized AI actions**: enabling auto-reply requires two independent, explicit opt-ins —

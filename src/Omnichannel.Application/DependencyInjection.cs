@@ -2,10 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Omnichannel.Application.Ai;
 using Omnichannel.Application.Audit;
 using Omnichannel.Application.Auth;
+using Omnichannel.Application.Automation;
 using Omnichannel.Application.Channels;
 using Omnichannel.Application.Contacts;
 using Omnichannel.Application.Conversations;
 using Omnichannel.Application.Knowledge;
+using Omnichannel.Application.Notifications;
 using Omnichannel.Application.Widget;
 
 namespace Omnichannel.Application;
@@ -26,6 +28,10 @@ public static class DependencyInjection
         services.AddScoped<AiAutoReplyService>();
         services.AddScoped<KnowledgeService>();
         services.AddScoped<AiAutoReplySettingsService>();
+        services.AddScoped<TenantBusinessHoursService>();
+        services.AddScoped<AutomationRuleService>();
+        services.AddScoped<SavedReplyService>();
+        services.AddScoped<NotificationService>();
         return services;
     }
 }

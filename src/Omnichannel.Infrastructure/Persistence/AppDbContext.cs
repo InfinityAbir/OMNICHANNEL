@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Audit;
+using Omnichannel.Domain.Automation;
 using Omnichannel.Domain.Knowledge;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Channels;
@@ -11,6 +12,7 @@ using Omnichannel.Domain.Common;
 using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
+using Omnichannel.Domain.Notifications;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
 using Omnichannel.Infrastructure.Identity;
@@ -66,6 +68,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
 
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
+
+    public DbSet<TenantBusinessHours> TenantBusinessHours => Set<TenantBusinessHours>();
+
+    public DbSet<AutomationRule> AutomationRules => Set<AutomationRule>();
+
+    public DbSet<SavedReply> SavedReplies => Set<SavedReply>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
 

@@ -66,6 +66,74 @@ internal static class EmailTemplates
         return (subject, html, plainText);
     }
 
+    public static (string Subject, string Html, string PlainText) ConversationEscalated(
+        string displayName, string tenantName, Guid conversationId, string ruleName)
+    {
+        var subject = $"Conversation escalated — {tenantName}";
+        var name = WebUtility.HtmlEncode(displayName);
+        var rule = WebUtility.HtmlEncode(ruleName);
+        var tenant = WebUtility.HtmlEncode(tenantName);
+
+        var html = SimpleLayout(
+            preheader: $"An automation rule escalated a conversation in {tenantName}.",
+            heading: "Conversation escalated",
+            bodyHtml: $"""
+                <p style="margin:0 0 16px;">Hi {name},</p>
+                <p style="margin:0 0 16px;">
+                    The automation rule <strong>{rule}</strong> escalated a conversation in
+                    <strong>{tenant}</strong> and it now needs a human's attention.
+                </p>
+                <p style="margin:0; font-size:13px; color:#71717a;">Conversation id: {conversationId}</p>
+                """);
+
+        var plainText =
+            $"Hi {displayName},\n\n" +
+            $"The automation rule \"{ruleName}\" escalated a conversation in {tenantName} and it now needs a human's attention.\n\n" +
+            $"Conversation id: {conversationId}";
+
+        return (subject, html, plainText);
+    }
+
+    /// <summary>A layout for transactional notices that don't have a specific deep-link URL to send the reader to (no established frontend-URL config reaches this call site) — same visual shell as <see cref="Layout"/> minus the CTA button.</summary>
+    private static string SimpleLayout(string preheader, string heading, string bodyHtml)
+        => $"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Omnichannel</title>
+            </head>
+            <body style="margin:0; padding:0; background-color:#f4f4f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <span style="display:none; font-size:1px; color:#f4f4f5; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
+                {WebUtility.HtmlEncode(preheader)}
+              </span>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5; padding:32px 16px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background-color:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e4e4e7;">
+                      <tr>
+                        <td style="padding:28px 32px; border-bottom:1px solid #e4e4e7;">
+                          <span style="font-size:18px; font-weight:700; color:#18181b; letter-spacing:-0.02em;">Omnichannel</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:32px;">
+                          <h1 style="margin:0 0 20px; font-size:20px; font-weight:700; color:#18181b;">{WebUtility.HtmlEncode(heading)}</h1>
+                          <div style="font-size:15px; line-height:1.6; color:#3f3f46;">
+                            {bodyHtml}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:20px 0 0; font-size:12px; color:#a1a1aa;">Omnichannel — one inbox for every customer conversation.</p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+            """;
+
     private static string Layout(string preheader, string heading, string bodyHtml, string buttonText, string buttonLink, string footerNote)
         => $"""
             <!doctype html>

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Authorization;
+using Omnichannel.Domain.Automation;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
@@ -62,6 +63,10 @@ public sealed class AuthService(
         // opt in and set up business hours before it can ever fire (PRD §71 conservative default).
         var autoReplySettings = AiAutoReplySettings.CreateDefault(tenant.Id, now);
 
+        // General business hours (Phase 13) — also unconfigured by default, independent of the
+        // AI-specific config above (ADR-0023).
+        var businessHours = TenantBusinessHours.CreateDefault(tenant.Id, now);
+
         db.UserProfiles.Add(domainUser);
         db.Tenants.Add(tenant);
         db.Memberships.Add(membership);
@@ -69,6 +74,7 @@ public sealed class AuthService(
         db.ChannelAccounts.Add(websiteChatChannel);
         db.WidgetSettings.Add(widgetSettings);
         db.AiAutoReplySettings.Add(autoReplySettings);
+        db.TenantBusinessHours.Add(businessHours);
         await db.SaveChangesAsync(cancellationToken);
 
         var confirmationToken = await identity.GenerateEmailConfirmationTokenAsync(domainUser.Id, cancellationToken);
