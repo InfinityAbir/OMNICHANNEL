@@ -19,5 +19,10 @@ public sealed class ConversationConfiguration : IEntityTypeConfiguration<Convers
         builder.HasIndex(c => new { c.TenantId, c.Status, c.LastMessageAt });
         builder.HasIndex(c => new { c.TenantId, c.AssignedUserId, c.Status });
         builder.HasIndex(c => c.ContactId);
+
+        // Phase 14 analytics: every summary query filters by (TenantId, CreatedAt) date range
+        // first — PRD §73's "use appropriate indexes... if needed" for avoiding a full scan on
+        // every dashboard request.
+        builder.HasIndex(c => new { c.TenantId, c.CreatedAt });
     }
 }

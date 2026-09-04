@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Omnichannel.Application.Ai;
+using Omnichannel.Application.Analytics;
 using Omnichannel.Application.Audit;
 using Omnichannel.Application.Auth;
 using Omnichannel.Application.Automation;
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<AutomationRuleService>();
         services.AddScoped<SavedReplyService>();
         services.AddScoped<NotificationService>();
+        services.AddScoped<AnalyticsService>();
         return services;
     }
 }

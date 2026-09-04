@@ -3,6 +3,22 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 14 controls (Analytics)
+
+- **Must never aggregate across tenants**: `AnalyticsService` runs entirely through
+  `IAppDbContext`'s ordinary `DbSet` properties under the ambient `ITenantContext` — no
+  `IgnoreQueryFilters()` anywhere in it, unlike Phase 12/13's services, since analytics has no
+  unauthenticated call site and the standard EF global tenant filter (ADR-0005) is sufficient and
+  correct here. Every grouped/aggregate query (status counts, response time, channel/agent
+  breakdowns) is therefore automatically scoped to the caller's own tenant by construction, not by
+  an explicit predicate that could be forgotten. Verified with a query deliberately shaped to
+  reveal cross-tenant leakage if the filter were missing (Tenant A has 5 conversations, Tenant B
+  has 1 — Tenant B's summary must show exactly 1, not 6):
+  `AnalyticsSecurityTests.Summary_NeverIncludesAnotherTenantsConversations`.
+- **Authorization**: gated by the existing `analytics.read` permission key (PRD §12, defined
+  since Phase 1, unused until now) — Agent and Viewer roles both have it, Owner/Admin implicitly
+  via the full permission set.
+
 ## Phase 13 controls (Business Rules + Automation)
 
 - **Rules cannot execute arbitrary code**: `AutomationRule` is a closed set of trigger types
