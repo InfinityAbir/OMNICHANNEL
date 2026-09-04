@@ -5,6 +5,7 @@ using Omnichannel.Application.Auth;
 using Omnichannel.Application.Channels;
 using Omnichannel.Application.Contacts;
 using Omnichannel.Application.Conversations;
+using Omnichannel.Application.Knowledge;
 using Omnichannel.Application.Widget;
 
 namespace Omnichannel.Application;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<WebhookIngestionService>();
         services.AddScoped<ChannelSendService>();
         services.AddScoped<AiSuggestionService>();
+        services.AddScoped<KnowledgeService>();
         return services;
     }
 }

@@ -29,9 +29,11 @@ public sealed class AiSuggestionService(
     TimeProvider timeProvider,
     AuditService audit,
     IAiProvider aiProvider,
-    IAiUsageLimiter usageLimiter)
+    IAiUsageLimiter usageLimiter,
+    IKnowledgeRetrievalService knowledgeRetrieval)
 {
     private const int HistoryWindowSize = 10;
+    private const int KnowledgeTopK = 3;
 
     public async Task<AiSuggestionResult> GetSuggestionAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -65,10 +67,25 @@ public sealed class AiSuggestionService(
             .Select(t => t.Name)
             .SingleOrDefaultAsync(cancellationToken) ?? "the business";
 
+        // Retrieve knowledge relevant to the customer's latest message (PRD §70+§69 tie-in) — a
+        // best-effort enhancement, not a hard dependency: an empty/failed lookup still lets the
+        // suggestion proceed with conversation history alone, same "safe fallback" discipline as
+        // everything else in this method.
+        var latestCustomerMessage = history.LastOrDefault(h => h.Role == "user")?.Text;
+        IReadOnlyList<AiKnowledgeSnippet>? knowledgeSnippets = null;
+        if (!string.IsNullOrWhiteSpace(latestCustomerMessage))
+        {
+            var retrieved = await knowledgeRetrieval.RetrieveAsync(tenantContext.TenantId, latestCustomerMessage, KnowledgeTopK, cancellationToken);
+            if (retrieved.Count > 0)
+            {
+                knowledgeSnippets = retrieved.Select(r => new AiKnowledgeSnippet(r.DocumentTitle, r.ChunkText)).ToList();
+            }
+        }
+
         AiCompletionResult completion;
         try
         {
-            completion = await aiProvider.GenerateSuggestionAsync(new AiPromptContext(tenantName, history), cancellationToken);
+            completion = await aiProvider.GenerateSuggestionAsync(new AiPromptContext(tenantName, history, knowledgeSnippets), cancellationToken);
         }
         catch (AiProviderException)
         {

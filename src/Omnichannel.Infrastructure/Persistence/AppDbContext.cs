@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Domain.Ai;
 using Omnichannel.Domain.Audit;
+using Omnichannel.Domain.Knowledge;
 using Omnichannel.Domain.Authorization;
 using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Common;
@@ -59,6 +60,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<ChannelCredential> ChannelCredentials => Set<ChannelCredential>();
 
     public DbSet<AiSuggestion> AiSuggestions => Set<AiSuggestion>();
+
+    public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
+
+    public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
 

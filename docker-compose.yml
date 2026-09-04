@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    # pgvector's own image, not vanilla postgres — Phase 11 (Knowledge Base) needs the `vector`
+    # extension for embedding similarity search; this image is a drop-in postgres:17 superset.
+    image: pgvector/pgvector:pg17
     container_name: omnichannel-postgres
     restart: unless-stopped
     environment:

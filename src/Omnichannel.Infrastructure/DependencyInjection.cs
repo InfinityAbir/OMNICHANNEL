@@ -7,8 +7,10 @@ using Omnichannel.Infrastructure.Ai;
 using Omnichannel.Infrastructure.Channels;
 using Omnichannel.Infrastructure.Email;
 using Omnichannel.Infrastructure.Identity;
+using Omnichannel.Infrastructure.Knowledge;
 using Omnichannel.Infrastructure.Persistence;
 using Omnichannel.Infrastructure.Realtime;
+using Pgvector.EntityFrameworkCore;
 using Omnichannel.Infrastructure.Widget;
 
 namespace Omnichannel.Infrastructure;
@@ -20,7 +22,7 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Missing required configuration: ConnectionStrings:Default");
 
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString, o => o.UseVector()));
 
         services.AddIdentityCore<ApplicationUser>(options =>
         {
@@ -78,6 +80,12 @@ public static class DependencyInjection
 
         services.AddHttpClient<IAiProvider, GroqAiProvider>();
         services.AddScoped<IAiUsageLimiter, AiUsageLimiter>();
+
+        // No embeddings-capable API key was available this phase (Groq's own catalog has none —
+        // ADR-0021); a deterministic lexical embedding proves the retrieval pipeline for real
+        // now, swappable for a neural provider later via this one registration.
+        services.AddSingleton<IEmbeddingProvider, HashingEmbeddingProvider>();
+        services.AddScoped<IKnowledgeRetrievalService, PgVectorKnowledgeRetrievalService>();
 
         return services;
     }

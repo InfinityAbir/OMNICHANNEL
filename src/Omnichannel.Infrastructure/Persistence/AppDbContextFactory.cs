@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Omnichannel.Application.Abstractions;
+using Pgvector.EntityFrameworkCore;
 
 namespace Omnichannel.Infrastructure.Persistence;
 
@@ -16,7 +17,7 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
             ?? "Host=localhost;Port=5432;Database=omnichannel;Username=omnichannel;Password=omnichannel_dev_only";
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(connectionString)
+            .UseNpgsql(connectionString, o => o.UseVector())
             .Options;
 
         return new AppDbContext(options, new DesignTimeTenantContext());

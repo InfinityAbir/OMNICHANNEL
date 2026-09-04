@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Omnichannel.Application.Abstractions;
 using Omnichannel.Infrastructure.Persistence;
+using Pgvector.EntityFrameworkCore;
 
 namespace Omnichannel.IntegrationTests;
 
@@ -19,7 +20,7 @@ public class AppDbContextConnectivityTests
     public async Task CanConnect_ToConfiguredPostgres()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(ConnectionString)
+            .UseNpgsql(ConnectionString, o => o.UseVector())
             .Options;
 
         await using var context = new AppDbContext(options, new UnauthenticatedTenantContext());

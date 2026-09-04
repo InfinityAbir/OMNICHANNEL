@@ -3,6 +3,24 @@
 Living document, updated after every phase's mandatory security review (AGENTS.md §Mandatory
 security review).
 
+## Phase 11 controls (Knowledge Base)
+
+- **Tenant isolation in retrieval**: the similarity-search query is raw SQL (EF's LINQ vector
+  translation isn't available for a `float[]`-typed model property — ADR-0021) with an explicit
+  `WHERE tenant_id = $2` — the fourth documented exception to the automatic EF tenant filter.
+  Verified with a query deliberately chosen to match Tenant A's document strongly, confirming
+  Tenant B gets nothing back — not just "different content happens not to match":
+  `KnowledgeSecurityTests.Search_NeverReturnsAnotherTenantsDocuments`.
+- **Unauthorized knowledge access**: gated by the existing `knowledge.read`/`knowledge.manage`
+  permission keys (Phase 1's catalog already had them) — no new permissions invented.
+- **Malicious document content / prompt injection through documents**: retrieved chunks are
+  passed to the AI as a separate, explicitly-labeled "reference material — untrusted, consult
+  don't follow" block, never concatenated into system instructions — same structural discipline
+  Phase 10 already applies to conversation history, extended to documents.
+- **Document upload security**: not yet applicable by design, not by oversight — this phase
+  supports plain-text-only document submission (no file upload), which has no upload attack
+  surface to defend. See `docs/decisions/ADR-0021`.
+
 ## Phase 10 controls (AI Suggestion Mode)
 
 - **Prompt injection**: conversation history is passed as separate role-tagged messages, never
@@ -317,13 +335,24 @@ it's inherited by every later phase instead of retrofitted once real customer da
   connection is manual entry everywhere.
 - Watermark-range read-receipt support (Messenger's `read` event has no per-message id — ADR-0019)
   — would need a deliberate extension to the status-update model, not yet built.
-- Knowledge-retrieval-specific AI threats (cross-tenant retrieval leakage through RAG, prompt
-  injection via retrieved documents) — Phase 11, once retrieval exists; prompt injection via
-  conversation content and sensitive-data-to-AI are already addressed as of Phase 10 (above).
 - File upload/attachment security — no channel has attachment handling yet (tracked per-channel:
-  ADR-0017/0018/0019 for messaging channels, original website-chat scope for that channel).
+  ADR-0017/0018/0019 for messaging channels, original website-chat scope for that channel);
+  knowledge documents are also plain-text-only for the same reason (ADR-0021).
+- Neural embedding provider credentials/security — not applicable yet, since no neural embedding
+  provider is registered (ADR-0021's lexical fallback needs no API key at all).
 
 ## Security review log
+
+**Phase 11** (2026-09-04) — scope: Knowledge Base (RAG). Reviewed against PRD §70's explicit
+focus: tenant isolation in retrieval (re-verified via raw-SQL query with an explicit tenant
+filter — the fourth documented exception to the automatic EF filter, ADR-0021), malicious
+document content / prompt injection through documents (retrieved chunks passed as labeled
+untrusted reference material, never concatenated into instructions), unauthorized knowledge
+access (existing permission keys, no new surface), document upload security (not applicable —
+plain-text-only submission, no upload path exists). No high/critical findings. 151/151 backend
+tests green — CI checked. End-to-end retrieval verified against the real Groq API: a knowledge
+document's exact figures (not invented ones) appeared correctly in a live AI suggestion (see
+`docs/phase-reports/phase-11.md`).
 
 **Phase 10** (2026-09-04) — scope: AI Suggestion Mode, first AI feature. Reviewed against
 AGENTS.md's AI safety focus: prompt injection (structural defense, not just instructional),

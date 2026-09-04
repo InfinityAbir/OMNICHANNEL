@@ -14,9 +14,13 @@ public interface IAiProvider
 /// <summary>One prior message in the conversation transcript given to the model — Role is "user" (customer/system-originated) or "assistant" (agent/AI-originated), never anything richer; message text is passed as data, never concatenated into instruction text (prompt-injection defense, PRD §37).</summary>
 public sealed record AiTranscriptMessage(string Role, string Text);
 
+/// <summary>A retrieved knowledge-base snippet offered as reference material — attributed to its source document, and treated by GroqAiProvider's prompt as untrusted reference content, never an instruction (PRD §70's "source attribution" + the same prompt-injection discipline applied to documents, not just conversation history).</summary>
+public sealed record AiKnowledgeSnippet(string DocumentTitle, string Text);
+
 public sealed record AiPromptContext(
     string BusinessName,
-    IReadOnlyList<AiTranscriptMessage> History);
+    IReadOnlyList<AiTranscriptMessage> History,
+    IReadOnlyList<AiKnowledgeSnippet>? KnowledgeSnippets = null);
 
 public sealed record AiCompletionResult(
     string SuggestedText,

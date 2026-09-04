@@ -170,6 +170,22 @@ explicitly instructed to match the customer's language *and script* (Bangla scri
 English) — verified against the real API with real text, not assumed. See
 [ADR-0020](decisions/ADR-0020-ai-suggestion-mode.md) and [ai.md](ai.md).
 
+## Knowledge Base (Phase 11)
+
+`KnowledgeService` (Application) owns the document → chunk → embedding pipeline: plain-text
+documents (no file upload this phase, ADR-0021) are fixed-size chunked (800 chars, 100 overlap),
+each chunk embedded via `IEmbeddingProvider` → `HashingEmbeddingProvider` (a deterministic
+lexical/feature-hashing embedding, not neural — no embeddings-capable API key was available;
+verified Groq's own catalog has none), stored as `vector(256)` columns via pgvector
+(`pgvector/pgvector:pg17`, replacing the plain `postgres` image everywhere it's provisioned).
+`PgVectorKnowledgeRetrievalService` does the tenant-scoped nearest-neighbor lookup via raw SQL
+(pgvector's `<=>` cosine-distance operator) — a documented exception to LINQ/the automatic EF
+filter, not an oversight (ADR-0021). `AiSuggestionService` (Phase 10) retrieves the top-3 chunks
+matching the customer's latest message and feeds them to the AI as labeled, untrusted reference
+material — verified end-to-end against the real Groq API, not just unit-tested (see
+`docs/phase-reports/phase-11.md`). Full design and alternatives:
+[ADR-0021](decisions/ADR-0021-knowledge-base.md).
+
 ## Frontend: channel indicators and theme
 
 Each conversation surfaces its source channel as a small monochrome icon (`ChannelIconComponent`,
@@ -191,9 +207,11 @@ Serilog (structured console logging) + OpenTelemetry (traces + metrics; OTLP exp
 
 ## What's deliberately not here yet
 
-All three PRD-scoped Meta channels (WhatsApp/Instagram/Messenger) now have real adapters, and
-Suggest-mode AI exists (above). No knowledge retrieval/RAG yet (Phase 11), no Auto-reply (Phase
-12), no background-processing engine (no workload so far has been slow enough to need one — see
-ADR-0016's alternatives). No media/attachment download for any channel (ADR-0017/0018/0019). Each
-is scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed) for
+All three PRD-scoped Meta channels (WhatsApp/Instagram/Messenger) now have real adapters,
+Suggest-mode AI exists, and Knowledge Base/retrieval exists (above). No Auto-reply yet (Phase 12),
+no business-rules/automation engine (Phase 13), no neural embedding provider (ADR-0021's lexical
+fallback until an embeddings-capable API key exists), no background-processing engine (no
+workload so far has been slow enough to need one — see ADR-0016's alternatives). No
+media/attachment or knowledge-document upload for anything (ADR-0017/0018/0019/0021). Each is
+scoped to its own phase per `OMNICHANNEL_PRD.md` §90 — see `PLAN.md` (local, not committed) for
 current phase status.

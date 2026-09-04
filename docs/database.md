@@ -1,6 +1,9 @@
 # Database
 
-PostgreSQL 17 via EF Core + Npgsql. See [ADR-0002](decisions/ADR-0002-postgresql.md).
+PostgreSQL 17 via EF Core + Npgsql. See [ADR-0002](decisions/ADR-0002-postgresql.md). Local dev
+and CI both run the `pgvector/pgvector:pg17` image (a drop-in superset of plain `postgres:17`) —
+Phase 11 added the `vector` extension for knowledge-base embedding storage/similarity search; see
+[ADR-0021](decisions/ADR-0021-knowledge-base.md).
 
 ## Current state (Phase 2)
 

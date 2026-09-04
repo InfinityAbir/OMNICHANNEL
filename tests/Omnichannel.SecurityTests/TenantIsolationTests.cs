@@ -3,6 +3,7 @@ using Omnichannel.Application.Abstractions;
 using Omnichannel.Domain.Identity;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Infrastructure.Persistence;
+using Pgvector.EntityFrameworkCore;
 
 namespace Omnichannel.SecurityTests;
 
@@ -21,7 +22,7 @@ public class TenantIsolationTests
     [Fact]
     public async Task Memberships_ForTenantA_NeverIncludeTenantBsRows()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConnectionString).Options;
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConnectionString, o => o.UseVector()).Options;
 
         Guid tenantAId, tenantBId;
 

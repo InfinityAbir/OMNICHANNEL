@@ -6,6 +6,7 @@ using Omnichannel.Domain.Channels;
 using Omnichannel.Domain.Contacts;
 using Omnichannel.Domain.Conversations;
 using Omnichannel.Domain.Identity;
+using Omnichannel.Domain.Knowledge;
 using Omnichannel.Domain.Tenancy;
 using Omnichannel.Domain.Widget;
 
@@ -49,6 +50,10 @@ public interface IAppDbContext
     DbSet<ChannelCredential> ChannelCredentials { get; }
 
     DbSet<AiSuggestion> AiSuggestions { get; }
+
+    DbSet<KnowledgeDocument> KnowledgeDocuments { get; }
+
+    DbSet<KnowledgeChunk> KnowledgeChunks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 

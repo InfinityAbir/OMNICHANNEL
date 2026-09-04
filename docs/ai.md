@@ -43,5 +43,20 @@ phases still ahead:
 - Cost tracking and configurable usage limits (daily/monthly/per-conversation) with safe
   fallback to human handling when limits are reached.
 
-Knowledge retrieval abstraction and conversation summarization proper (beyond the fixed
-10-message window Suggest mode uses) land with Phase 11 (Knowledge Base / RAG).
+## Phase 11 — Knowledge Base / retrieval (implemented)
+
+`IEmbeddingProvider` → `HashingEmbeddingProvider` (Infrastructure): a deterministic lexical
+(feature-hashing) embedding, not neural — checked first, not assumed, that no embeddings-capable
+key was available (Groq's own model catalog has none). Real, working keyword/near-duplicate
+retrieval today; swappable for a neural provider later via the same interface. `KnowledgeService`
+owns document → chunk → embedding indexing (plain-text documents, fixed-size chunking,
+versioning, re-indexing on revision). `PgVectorKnowledgeRetrievalService` does tenant-scoped
+nearest-neighbor lookup over pgvector. `AiSuggestionService` retrieves the top-3 relevant chunks
+for the customer's latest message and feeds them to the AI as labeled, untrusted reference
+material — verified end-to-end against the real Groq API (a knowledge document's exact figures
+appeared correctly in a live suggestion, not invented ones). Full detail:
+[ADR-0021](decisions/ADR-0021-knowledge-base.md).
+
+Conversation summarization proper (beyond the fixed 10-message window Suggest mode uses) isn't
+built — not needed at the scale exercised so far; revisit if long conversations make the window
+insufficient.
