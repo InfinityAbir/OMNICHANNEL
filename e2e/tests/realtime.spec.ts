@@ -22,7 +22,7 @@ test('second agent sees new conversation appear in real-time via SignalR', async
   await pageA.getByLabel('Business name').fill('RT E2E Business');
   await pageA.getByLabel('Your name').fill('Agent A');
   await pageA.getByLabel('Email').fill(email);
-  await pageA.getByLabel('Password').fill(password);
+  await pageA.getByLabel('Password', { exact: true }).fill(password);
   await pageA.getByRole('button', { name: 'Create account' }).click();
   await expect(pageA).toHaveURL(/\/inbox$/);
   await expect(pageA.getByText('No conversations here')).toBeVisible();
@@ -33,7 +33,7 @@ test('second agent sees new conversation appear in real-time via SignalR', async
 
   await pageB.goto('/login');
   await pageB.getByLabel('Email').fill(email);
-  await pageB.getByLabel('Password').fill(password);
+  await pageB.getByLabel('Password', { exact: true }).fill(password);
   await pageB.getByRole('button', { name: 'Sign in' }).click();
   await expect(pageB).toHaveURL(/\/inbox$/);
   await expect(pageB.getByText('No conversations here')).toBeVisible();
@@ -73,7 +73,7 @@ test('second agent sees new message appear in real-time in the same conversation
   await pageA.getByLabel('Business name').fill('RT E2E Business 2');
   await pageA.getByLabel('Your name').fill('Agent A');
   await pageA.getByLabel('Email').fill(email);
-  await pageA.getByLabel('Password').fill(password);
+  await pageA.getByLabel('Password', { exact: true }).fill(password);
   await pageA.getByRole('button', { name: 'Create account' }).click();
   await expect(pageA).toHaveURL(/\/inbox$/);
 
@@ -90,7 +90,7 @@ test('second agent sees new message appear in real-time in the same conversation
 
   await pageB.goto('/login');
   await pageB.getByLabel('Email').fill(email);
-  await pageB.getByLabel('Password').fill(password);
+  await pageB.getByLabel('Password', { exact: true }).fill(password);
   await pageB.getByRole('button', { name: 'Sign in' }).click();
   await expect(pageB).toHaveURL(/\/inbox$/);
 

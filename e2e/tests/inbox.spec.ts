@@ -12,7 +12,7 @@ test('register, create a conversation, and send a message end to end', async ({ 
   await page.getByLabel('Business name').fill('E2E Test Business');
   await page.getByLabel('Your name').fill('E2E Owner');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('Str0ng!Passw0rd');
+  await page.getByLabel('Password', { exact: true }).fill('Str0ng!Passw0rd');
   await page.getByRole('button', { name: 'Create account' }).click();
 
   // --- Lands on the inbox, authenticated ---

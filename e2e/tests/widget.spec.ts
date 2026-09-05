@@ -45,7 +45,7 @@ test('website chat widget: visitor message reaches agent, agent reply reaches vi
   const agentPage = await agentCtx.newPage();
   await agentPage.goto('/login');
   await agentPage.getByLabel('Email').fill(email);
-  await agentPage.getByLabel('Password').fill(password);
+  await agentPage.getByLabel('Password', { exact: true }).fill(password);
   await agentPage.getByRole('button', { name: 'Sign in' }).click();
   await expect(agentPage).toHaveURL(/\/inbox$/);
   await expect(agentPage.getByText('No conversations here')).toBeVisible();

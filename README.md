@@ -115,3 +115,8 @@ business hours, saved replies, analytics), and per-tenant AI provider and SMTP c
 (any OpenAI-compatible provider or Anthropic, auto-detected from a pasted API key; a business's
 own mail server) — both encrypted at rest, both optional with a working platform default, both
 with a "test connection" check before saving. See [`docs/decisions/ADR-0027-dynamic-tenant-configuration.md`](docs/decisions/ADR-0027-dynamic-tenant-configuration.md).
+
+## License
+
+Proprietary — all rights reserved. See [`LICENSE`](LICENSE). Publicly visible for portfolio and
+demonstration purposes only; no license to use, copy, modify, or distribute is granted.
