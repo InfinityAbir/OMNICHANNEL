@@ -41,6 +41,17 @@ services, e-commerce sellers, and similar — and want fewer missed conversation
 24/7 support team. Not built as a CRM replacement, an e-commerce platform, or a marketing
 automation tool — see `OMNICHANNEL_PRD.md` §4.3 for what's explicitly out of scope for the MVP.
 
+## Screenshots
+
+### Inbox
+![Inbox](images/inbox.png)
+
+### Knowledge Base
+![Knowledge Base](images/knowledgebase.png)
+
+### Business Hours
+![Business Hours](images/businesshour.png)
+
 ## How it's built
 
 - **Backend:** .NET 10, ASP.NET Core, C#, EF Core, PostgreSQL — Clean Architecture, modular
