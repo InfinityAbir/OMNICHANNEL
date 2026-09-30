@@ -67,6 +67,17 @@ Development follows a strict phase-by-phase plan (`OMNICHANNEL_PRD.md`) with a s
 test run, and explicit approval gate after every phase — see `AGENTS.md` for the engineering
 rules this project is held to.
 
+## Architecture
+
+The platform is designed as a modular monolith with a clear separation between
+the web application, API surface, conversation workflow, support capabilities,
+and platform services.
+
+![Omnichannel Architecture](images/diagram.png)
+
+For detailed architectural decisions, layering, request flow, and boundaries,
+see [`docs/architecture.md`](docs/architecture.md).
+
 ## Local development
 
 Prerequisites: .NET 10 SDK, Node 24+/npm, Docker (for local PostgreSQL).
